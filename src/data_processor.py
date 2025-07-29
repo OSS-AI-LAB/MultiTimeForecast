@@ -20,6 +20,16 @@ try:
 except ImportError:
     chardet = None
 
+try:
+    import xlwings as xw
+except ImportError:
+    xw = None
+
+try:
+    import win32com.client
+except ImportError:
+    win32com = None
+
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,25 +63,70 @@ class TelecomDataProcessor:
         try:
             # Excel 파일 처리 (DRM 보호된 파일 포함)
             if file_ext in ['.xlsx', '.xls']:
-                logger.info("Excel 파일 감지 - Excel 엔진으로 로드 시도")
-                try:
-                    # openpyxl 엔진으로 시도
-                    df = pd.read_excel(file_path, engine='openpyxl')
-                except Exception as e1:
-                    logger.warning(f"openpyxl 엔진 실패: {e1}")
+                logger.info("Excel 파일 감지 - 다양한 방법으로 로드 시도")
+                df = None
+                
+                # 1. pandas 엔진들로 시도
+                engines = ['openpyxl', 'xlrd']
+                for engine in engines:
                     try:
-                        # xlrd 엔진으로 시도
-                        df = pd.read_excel(file_path, engine='xlrd')
-                    except Exception as e2:
-                        logger.warning(f"xlrd 엔진 실패: {e2}")
-                        # 기본 엔진으로 시도
+                        logger.info(f"pandas {engine} 엔진으로 시도")
+                        df = pd.read_excel(file_path, engine=engine)
+                        logger.info(f"성공: {engine} 엔진으로 로드됨")
+                        break
+                    except Exception as e:
+                        logger.warning(f"{engine} 엔진 실패: {e}")
+                        continue
+                
+                # 2. xlwings로 시도 (DRM 보호 파일 처리)
+                if df is None and xw is not None:
+                    try:
+                        logger.info("xlwings로 시도 (DRM 보호 파일 처리)")
+                        app = xw.App(visible=False)
+                        wb = app.books.open(file_path)
+                        sheet = wb.sheets[0]
+                        data = sheet.used_range.options(pd.DataFrame, index=False, header=True).value
+                        wb.close()
+                        app.quit()
+                        df = data
+                        logger.info("성공: xlwings로 로드됨")
+                    except Exception as e:
+                        logger.warning(f"xlwings 실패: {e}")
+                
+                # 3. win32com으로 시도 (Windows 전용)
+                if df is None and win32com is not None:
+                    try:
+                        logger.info("win32com으로 시도")
+                        excel = win32com.client.Dispatch("Excel.Application")
+                        excel.Visible = False
+                        wb = excel.Workbooks.Open(os.path.abspath(file_path))
+                        sheet = wb.Sheets(1)
+                        data = sheet.UsedRange.Value
+                        wb.Close()
+                        excel.Quit()
+                        
+                        # 데이터를 DataFrame으로 변환
+                        if data:
+                            df = pd.DataFrame(data[1:], columns=data[0])
+                        logger.info("성공: win32com으로 로드됨")
+                    except Exception as e:
+                        logger.warning(f"win32com 실패: {e}")
+                
+                # 4. 기본 엔진으로 최종 시도
+                if df is None:
+                    try:
+                        logger.info("기본 엔진으로 최종 시도")
                         df = pd.read_excel(file_path)
+                        logger.info("성공: 기본 엔진으로 로드됨")
+                    except Exception as e:
+                        logger.error(f"모든 Excel 로드 방법 실패: {e}")
+                        raise
             
             # CSV 파일 처리 (다양한 인코딩 시도)
             elif file_ext == '.csv':
                 df = None
                 
-                # 1. chardet를 사용한 자동 인코딩 감지
+                # 1. chardet를 사용한 자동 인코딩 감지 + 구분자 감지
                 if chardet is not None:
                     try:
                         with open(file_path, 'rb') as f:
@@ -82,30 +137,85 @@ class TelecomDataProcessor:
                             
                         if detected_encoding and confidence > 0.7:
                             logger.info(f"자동 감지된 인코딩: {detected_encoding} (신뢰도: {confidence:.2f})")
+                            
+                            # 구분자 자동 감지
                             try:
-                                df = pd.read_csv(file_path, encoding=detected_encoding)
-                                logger.info("자동 감지 인코딩으로 성공적으로 로드됨")
+                                with open(file_path, 'r', encoding=detected_encoding) as f:
+                                    first_line = f.readline().strip()
+                                
+                                # 일반적인 구분자들로 테스트
+                                delimiters = [',', ';', '\t', '|']
+                                best_delimiter = ','
+                                max_fields = 1
+                                
+                                for delimiter in delimiters:
+                                    field_count = len(first_line.split(delimiter))
+                                    if field_count > max_fields:
+                                        max_fields = field_count
+                                        best_delimiter = delimiter
+                                
+                                logger.info(f"자동 감지된 구분자: '{best_delimiter}' (필드 수: {max_fields})")
+                                
+                                try:
+                                    # 다양한 CSV 파싱 옵션 시도
+                                    csv_options = [
+                                        {'delimiter': best_delimiter},
+                                        {'delimiter': best_delimiter, 'quoting': 3},  # QUOTE_NONE
+                                        {'delimiter': best_delimiter, 'quotechar': '"'},
+                                        {'delimiter': best_delimiter, 'escapechar': '\\'}
+                                    ]
+                                    
+                                    for options in csv_options:
+                                        try:
+                                            df = pd.read_csv(file_path, encoding=detected_encoding, **options)
+                                            logger.info(f"자동 감지 인코딩과 구분자로 성공적으로 로드됨 (옵션: {options})")
+                                            break
+                                        except Exception as e:
+                                            logger.warning(f"CSV 옵션 {options} 실패: {e}")
+                                            continue
+                                    
+                                    if df is None:
+                                        logger.warning("모든 CSV 옵션 실패")
+                                except Exception as e:
+                                    logger.warning(f"자동 감지 설정 실패: {e}")
                             except Exception as e:
-                                logger.warning(f"자동 감지 인코딩 실패: {e}")
+                                logger.warning(f"구분자 감지 실패: {e}")
                     except Exception as e:
                         logger.warning(f"자동 인코딩 감지 실패: {e}")
                 
-                # 2. 수동 인코딩 시도
+                # 2. 수동 인코딩 시도 (다양한 구분자 포함)
                 if df is None:
                     encodings = ['utf-8', 'cp949', 'euc-kr', 'latin1', 'iso-8859-1', 'utf-8-sig']
+                    delimiters = [',', ';', '\t', '|']
                     
                     for encoding in encodings:
-                        try:
-                            logger.info(f"수동 인코딩 {encoding}로 시도")
-                            df = pd.read_csv(file_path, encoding=encoding)
-                            logger.info(f"성공: {encoding} 인코딩으로 로드됨")
+                        for delimiter in delimiters:
+                            # 다양한 CSV 파싱 옵션 시도
+                            csv_options = [
+                                {'delimiter': delimiter},
+                                {'delimiter': delimiter, 'quoting': 3},  # QUOTE_NONE
+                                {'delimiter': delimiter, 'quotechar': '"'},
+                                {'delimiter': delimiter, 'escapechar': '\\'}
+                            ]
+                            
+                            for options in csv_options:
+                                try:
+                                    logger.info(f"인코딩 {encoding}, 구분자 '{delimiter}', 옵션 {options}로 시도")
+                                    df = pd.read_csv(file_path, encoding=encoding, **options)
+                                    logger.info(f"성공: {encoding} 인코딩, '{delimiter}' 구분자로 로드됨")
+                                    break
+                                except UnicodeDecodeError:
+                                    logger.warning(f"인코딩 {encoding} 실패")
+                                    break
+                                except Exception as e:
+                                    logger.warning(f"인코딩 {encoding}, 구분자 '{delimiter}', 옵션 {options}에서 기타 오류: {e}")
+                                    continue
+                            
+                            if df is not None:
+                                break
+                        
+                        if df is not None:
                             break
-                        except UnicodeDecodeError:
-                            logger.warning(f"인코딩 {encoding} 실패")
-                            continue
-                        except Exception as e:
-                            logger.warning(f"인코딩 {encoding}에서 기타 오류: {e}")
-                            continue
                 
                 if df is None:
                     raise ValueError("모든 인코딩 시도 실패")
