@@ -1,0 +1,18 @@
+4. 예측 파이프라인 실행 중...
+INFO:src.models:=== 예측 파이프라인 시작 ===
+INFO:src.models:TimeSeries 생성: 기타수익_기타 - 29개 데이터포인트
+INFO:src.models:TimeSeries 생성: 기타수익_수납대행수수료수익 - 29개 데이터포인트
+INFO:src.models:TimeSeries 생성: 기타수익_할인 - 29개 데이터포인트
+INFO:src.models:TimeSeries 생성: 무선전화_MVNO - 29개 데이터포인트
+INFO:src.models:TimeSeries 생성: 무선전화_MVNO<수익조정> - 29개 데이터포인트
+INFO:src.models:TimeSeries 생성: 무선전화_SMS접속료 - 29개 데이터포인트
+INFO:src.models:TimeSeries 생성: 무선전화_WiBro - 29개 데이터포인트
+INFO:src.models:TimeSeries 생성: 무선전화_국제로밍접속료 - 29개 데이터포인트
+INFO:src.models:TimeSeries 생성: 무선전화_기본료 - 29개 데이터포인트
+INFO:src.models:TimeSeries 생성: 무선전화_기타 - 29개 데이터포인트
+INFO:src.models:TFT 모델 훈련 시작...
+INFO:src.models:TFT 모델 생성 완료
+ERROR:darts.models.forecasting.tft_model:ValueError: TFTModel requires future covariates. The model applies multi-head attention queries on future inputs. Consider specifying a future encoder with `add_encoders` or setting `add_relative_index` to `True` at model creation (read TFT model docs for more information). These will automatically generate `future_covariates` from indexes.
+ERROR:__main__:시스템 실행 중 오류 발생: TFTModel requires future covariates. The model applies multi-head attention queries on future inputs. Consider specifying a future encoder with `add_encoders` or setting `add_relative_index` to `True` at model creation (read TFT model docs for more information). These will automatically generate `future_covariates` from indexes.
+
+오류 발생: TFTModel requires future covariates. The model applies multi-head attention queries on future inputs. Consider specifying a future encoder with `add_encoders` or setting `add_relative_index` to `True` at model creation (read TFT model docs for more information). These will automatically generate `future_covariates` from indexes.

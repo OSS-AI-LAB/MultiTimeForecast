@@ -47,11 +47,10 @@ class TelecomForecaster:
                 dates = df.index
                 
                 # TimeSeries 객체 생성
-                ts = TimeSeries.from_times_and_values(
+                ts = TimeSeries(
                     times=dates,
                     values=series_data,
-                    fill_missing_dates=True,
-                    freq='MS'  # 월별 빈도
+                    freq='MS'  # ✅
                 )
                 
                 time_series_dict[col] = ts
@@ -115,11 +114,11 @@ class TelecomForecaster:
         
         if combined_series:
             # 다변량 시계열 생성
-            multivariate_series = TimeSeries.from_values(
-                np.column_stack([ts.values() for ts in combined_series]),
-                columns=target_columns,
-                fill_missing_dates=True,
-                freq='MS'
+            multivariate_series = TimeSeries(
+                times=combined_series[0].time_index,
+                values=np.column_stack([ts.values() for ts in combined_series]),
+                components=target_columns,
+                freq='MS'  # ✅
             )
             
             # TFT 모델 훈련
@@ -165,11 +164,11 @@ class TelecomForecaster:
                     combined_series.append(time_series_dict[col])
             
             if combined_series:
-                multivariate_series = TimeSeries.from_values(
-                    np.column_stack([ts.values() for ts in combined_series]),
-                    columns=target_columns,
-                    fill_missing_dates=True,
-                    freq='MS'
+                multivariate_series = TimeSeries(
+                    times=combined_series[0].time_index,
+                    values=np.column_stack([ts.values() for ts in combined_series]),
+                    components=target_columns,
+                    freq='MS'  # ✅
                 )
                 
                 # 예측 수행
@@ -266,11 +265,11 @@ class TelecomForecaster:
                     combined_series.append(time_series_dict[col])
             
             if combined_series:
-                multivariate_series = TimeSeries.from_values(
-                    np.column_stack([ts.values() for ts in combined_series]),
-                    columns=target_columns,
-                    fill_missing_dates=True,
-                    freq='MS'
+                multivariate_series = TimeSeries(
+                    times=combined_series[0].time_index,
+                    values=np.column_stack([ts.values() for ts in combined_series]),
+                    components=target_columns,
+                    freq='MS'  # ✅
                 )
                 
                 # 훈련/테스트 분할

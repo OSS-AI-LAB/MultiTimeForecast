@@ -153,3 +153,6 @@ Desktop.ini
 # Temporary files
 *.tmp
 *.temp 
+
+# data
+data/
