@@ -174,7 +174,7 @@ class TelecomForecaster:
                 
                 # 예측 수행
                 tft_forecast = tft_model.predict(n=forecast_horizon)
-                predictions['tft'] = tft_forecast.pd_dataframe()
+                predictions['tft'] = tft_forecast.to_dataframe()
                 logger.info("TFT 모델 예측 완료")
         
         # 앙상블 사용 여부에 따라 Prophet 모델 예측
@@ -188,7 +188,7 @@ class TelecomForecaster:
                 if col in prophet_models and col in time_series_dict:
                     prophet_model = prophet_models[col]
                     prophet_forecast = prophet_model.predict(n=forecast_horizon)
-                    prophet_predictions[col] = prophet_forecast.pd_dataframe()
+                    prophet_predictions[col] = prophet_forecast.to_dataframe()
             
             predictions['prophet'] = prophet_predictions
             logger.info("Prophet 모델 예측 완료")
