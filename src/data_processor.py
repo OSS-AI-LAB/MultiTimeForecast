@@ -171,7 +171,7 @@ class TelecomDataProcessor:
                                     
                                     for options in csv_options:
                                         try:
-                                            df = pd.read_csv(file_path, encoding=detected_encoding, **options)
+                                            df = pd.read_csv(file_path, encoding=detected_encoding, skipinitialspace=True, **options)
                                             logger.info(f"자동 감지 인코딩과 구분자로 성공적으로 로드됨 (옵션: {options})")
                                             break
                                         except Exception as e:
@@ -209,7 +209,7 @@ class TelecomDataProcessor:
                             for options in csv_options:
                                 try:
                                     logger.info(f"인코딩 {encoding}, 구분자 '{delimiter}', 옵션 {options}로 시도")
-                                    df = pd.read_csv(file_path, encoding=encoding, **options)
+                                    df = pd.read_csv(file_path, encoding=encoding, skipinitialspace=True, **options)
                                     logger.info(f"성공: {encoding} 인코딩, '{delimiter}' 구분자로 로드됨")
                                     break
                                 except UnicodeDecodeError:
@@ -248,9 +248,14 @@ class TelecomDataProcessor:
             else:
                 raise ValueError(f"지원하지 않는 파일 형식: {file_ext}")
             
-            # 컬럼명 정리
+            # 컬럼명 정리 (공백 제거)
             columns_config = self.config['data']['columns']
             df.columns = [col.strip() for col in df.columns]
+            
+            # 모든 문자열 컬럼의 공백 제거
+            for col in df.columns:
+                if df[col].dtype == 'object':
+                    df[col] = df[col].astype(str).str.strip()
             
             # 데이터 타입 변환
             df[columns_config['date_col']] = pd.to_datetime(df[columns_config['date_col']], format='%Y%m')

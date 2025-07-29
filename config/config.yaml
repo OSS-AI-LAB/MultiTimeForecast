@@ -3,7 +3,7 @@
 # 데이터 설정
 data:
   # 지원 파일 형식: .csv, .xlsx, .xls
-  raw_file: "data/raw/telecom_financial_data.csv"
+  raw_file: "data/raw/telecom_financial_data.xlsx"
   processed_dir: "data/processed"
   results_dir: "results"
   
