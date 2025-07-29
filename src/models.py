@@ -74,6 +74,7 @@ class TelecomForecaster:
             n_epochs=tft_config['n_epochs'],
             optimizer_kwargs=tft_config['optimizer_kwargs'],
             random_state=tft_config['random_state'],
+            add_relative_index=True,  # 미래 공변량 문제 해결
             pl_trainer_kwargs={
                 "accelerator": "auto",
                 "devices": "auto"
