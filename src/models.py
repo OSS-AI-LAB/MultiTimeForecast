@@ -285,6 +285,12 @@ class TelecomForecaster:
     def safe_metric_calculation(self, actual: np.ndarray, predicted: np.ndarray, metric_name: str) -> float:
         """안전한 메트릭 계산 (오류 처리 포함)"""
         try:
+            # 배열 차원 확인 및 1차원으로 변환
+            if actual.ndim > 1:
+                actual = actual.flatten()
+            if predicted.ndim > 1:
+                predicted = predicted.flatten()
+            
             # NaN이나 무한대 값 제거
             mask = np.isfinite(actual) & np.isfinite(predicted)
             if not np.any(mask):
@@ -296,9 +302,17 @@ class TelecomForecaster:
             if len(actual_clean) == 0:
                 return np.nan
             
-            # TimeSeries 객체 생성
-            actual_ts = TimeSeries.from_values(actual_clean)
-            predicted_ts = TimeSeries.from_values(predicted_clean)
+            # TimeSeries 객체 생성 (차원 문제 해결)
+            try:
+                # 1차원 배열로 변환
+                actual_1d = actual_clean.flatten() if actual_clean.ndim > 1 else actual_clean
+                predicted_1d = predicted_clean.flatten() if predicted_clean.ndim > 1 else predicted_clean
+                
+                actual_ts = TimeSeries.from_values(actual_1d)
+                predicted_ts = TimeSeries.from_values(predicted_1d)
+            except Exception as e:
+                logger.warning(f"TimeSeries 생성 실패 ({metric_name}): {e}")
+                return np.nan
             
             # 길이가 다른 경우 짧은 쪽에 맞춤
             min_len = min(len(actual_ts), len(predicted_ts))
