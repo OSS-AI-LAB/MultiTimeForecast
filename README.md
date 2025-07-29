@@ -1,192 +1,203 @@
-# TFT 통신사 손익전망 시계열 분석
+# 통신사 재무 예측 시스템 (Telecom Financial Forecasting)
 
-darts 라이브러리의 TFT (Temporal Fusion Transformer) 모델을 활용하여 통신사 5G, 3G, LTE 등의 월별 데이터로 손익전망 시계열 데이터를 생성하는 프로젝트입니다.
+Darts 라이브러리의 TFTModel을 활용한 통신사 계정과목별 매출 예측 시스템입니다.
 
-## 프로젝트 구조
+## 🎯 프로젝트 개요
+
+이 프로젝트는 통신사의 재무 데이터를 분석하여 GL_ACC_LSN_NM(계정과목명) 기준으로 매출을 예측하는 시스템입니다.
+
+### 주요 특징
+
+- **계정과목별 예측**: GL_ACC_LSN_NM을 기준으로 한 다변량 시계열 예측
+- **Darts TFTModel**: Temporal Fusion Transformer를 활용한 고성능 예측
+- **계층적 구조**: 제품별 → 계정과목별 계층적 예측
+- **앙상블 모델**: TFT + Prophet 모델 앙상블
+- **동적 특성 엔지니어링**: 시간적 특성, 지연 특성, 이동평균 등
+
+## 📊 데이터 구조
+
+### 입력 데이터 형식
+
+```csv
+BASE_YM,BASE_YY,ENTR_3_PROD_LEVEL_NM,PROFT_SRC_NM,GL_ACC_LSN_NO,GL_ACC_LSN_NM,SUM_DIV_NM,PRFIT_PERSP_1_INDX_VAL
+202306,2025,3G,서비스이용료,415020400,무선전화_기본료,월별매출,1697722067
+202306,2025,LTE,서비스이용료,415050400,무선전화_플랫폼이용료,월별매출,8842835544
+...
+```
+
+### 컬럼 설명
+
+- `BASE_YM`: 기준년월 (YYYYMM)
+- `BASE_YY`: 기준년도
+- `ENTR_3_PROD_LEVEL_NM`: 제품 레벨 (3G, LTE, 5G, Enterprise무선 등)
+- `PROFT_SRC_NM`: 손익원천명
+- `GL_ACC_LSN_NO`: 계정과목 코드
+- `GL_ACC_LSN_NM`: 계정과목명 (예측 대상)
+- `SUM_DIV_NM`: 집계 구분명
+- `PRFIT_PERSP_1_INDX_VAL`: 매출액
+
+## 🏗️ 프로젝트 구조
 
 ```
 timesFM/
-├── data/                   # 데이터 파일들
-│   ├── raw/               # 원본 데이터
-│   └── processed/         # 전처리된 데이터
-├── src/                   # 소스 코드
-│   ├── data_processing.py # 데이터 전처리
-│   ├── tft_model.py       # TFT 모델 래퍼
-│   ├── forecasting.py     # 예측 로직
-│   └── visualization.py   # 시각화
-├── notebooks/             # Jupyter 노트북
-├── results/               # 결과 파일들
-└── config/                # 설정 파일들
+├── config/
+│   └── config.yaml              # 설정 파일
+├── data/
+│   ├── raw/
+│   │   └── telecom_financial_data.csv  # 원본 데이터
+│   └── processed/               # 처리된 데이터
+├── src/
+│   ├── data_processor.py        # 데이터 처리 모듈
+│   ├── models.py               # 예측 모델 (Darts TFTModel)
+│   └── visualizer.py           # 시각화 모듈
+├── results/                    # 예측 결과 및 차트
+├── main.py                     # 메인 실행 스크립트
+├── requirements.txt            # 의존성 목록
+└── README.md                   # 프로젝트 문서
 ```
 
-## 설치 및 실행
+## 🚀 설치 및 실행
 
-### 시스템 요구사항
-- Python 3.11 이상
-- 최소 8GB RAM (GPU 사용 권장)
+### 1. 환경 설정
 
-### 1. 가상환경 생성 및 활성화:
 ```bash
-# Python 3.11 확인
-python --version
-
 # 가상환경 생성
 python -m venv venv
-source venv/bin/activate  # macOS/Linux
-# 또는
-venv\Scripts\activate     # Windows
-```
 
-### 2. 패키지 설치:
-```bash
-# pip 업그레이드
-pip install --upgrade pip
+# 가상환경 활성화
+# Windows
+venv\Scripts\activate
+# macOS/Linux
+source venv/bin/activate
 
-# 패키지 설치
+# 의존성 설치
 pip install -r requirements.txt
 ```
 
-### 3. Jupyter 노트북 실행:
-```bash
-jupyter notebook
-```
+### 2. 데이터 준비
 
-## 주요 기능
+`data/raw/telecom_financial_data.csv` 파일에 원본 데이터를 위치시킵니다.
 
-- **다변량 시계열 데이터 처리**: 5G, 3G, LTE 등 다양한 통신 기술 데이터
-- **TFT 모델 활용**: darts 라이브러리의 TFT (Temporal Fusion Transformer) 모델을 통한 시계열 예측
-- **손익전망 분석**: 수익성 지표 및 비용 분석
-- **시각화**: 대화형 차트 및 리포트 생성
-- **어텐션 메커니즘**: 변수 간 관계를 학습하는 고급 딥러닝 모델
-- **자동 리포트 생성**: 예측 결과를 바탕으로 한 종합 분석 리포트
-- **대화형 대시보드**: Plotly를 활용한 인터랙티브 시각화
+### 3. 실행
 
-## 예측 변수
-
-### 타겟 변수 (예측 대상)
-- `5g_users`, `lte_users`, `3g_users` - 기술별 사용자 수
-- `5g_revenue`, `lte_revenue`, `3g_revenue` - 기술별 매출
-- `5g_cost`, `lte_cost`, `3g_cost` - 기술별 비용
-
-### 공변량 (예측에 도움되는 변수)
-- `month`, `quarter`, `year` - 시간 특성
-- `total_users`, `total_revenue`, `total_cost` - 총계 지표
-- `profit`, `profit_margin` - 수익성 지표
-- `5g_share`, `lte_share`, `3g_share` - 기술별 점유율
-- `5g_arpu`, `lte_arpu`, `3g_arpu` - 기술별 ARPU (Average Revenue Per User)
-
-## 데이터 요구사항
-
-월별 데이터는 다음 형식을 권장합니다:
-- 날짜 컬럼 (YYYY-MM 형식)
-- 기술별 사용자 수
-- 매출 데이터
-- 비용 데이터
-- 기타 관련 지표들
-
-## 결과 파일
-
-실행 후 `results/` 디렉토리에 다음 파일들이 생성됩니다:
-
-### 예측 결과
-- `forecast_results.csv` - 12개월 예측 결과
-- `profitability_analysis.csv` - 수익성 분석 결과
-
-### 기술별 분석
-- `5g_analysis.csv` - 5G 기술별 상세 분석
-- `lte_analysis.csv` - LTE 기술별 상세 분석  
-- `3g_analysis.csv` - 3G 기술별 상세 분석
-
-### 시각화 및 리포트
-- `interactive_dashboard.html` - 대화형 대시보드 (Plotly)
-- `analysis_report.txt` - 텍스트 분석 리포트
-- `historical_trends.png` - 과거 데이터 추이 차트
-- `forecast_comparison.png` - 예측 결과 비교 차트
-- `profitability_analysis.png` - 수익성 분석 차트
-- `technology_comparison.png` - 기술별 비교 차트
-
-### 모델 파일
-- `tft_model.pth` - 훈련된 TFT 모델
-
-## TFT 모델의 장점
-
-### 1. 어텐션 메커니즘
-- 변수 간 관계를 자동으로 학습
-- 중요한 시점과 변수에 집중하여 예측 정확도 향상
-
-### 2. 다변량 처리
-- 여러 변수를 동시에 예측
-- 변수 간 상관관계를 고려한 예측
-
-### 3. 시간 특성 활용
-- 월, 분기, 연도 등의 시간 정보 활용
-- 계절성 및 트렌드를 자동으로 학습
-
-### 4. 공변량 지원
-- 예측에 도움이 되는 추가 변수 활용
-- 외부 요인을 고려한 예측
-
-### 5. 확장성
-- 새로운 변수 추가 용이
-- 다양한 시계열 길이 지원
-
-## 모델 설정 옵션
-
-### 기본 설정
-```python
-config = {
-    'input_chunk_length': 12,      # 입력 시퀀스 길이 (개월)
-    'output_chunk_length': 12,     # 출력 시퀀스 길이 (개월)
-    'hidden_size': 64,             # 은닉층 크기
-    'num_attention_heads': 4,      # 어텐션 헤드 수
-    'num_encoder_layers': 2,       # 인코더 레이어 수
-    'num_decoder_layers': 2,       # 디코더 레이어 수
-    'dropout': 0.1,                # 드롭아웃 비율
-    'batch_size': 32,              # 배치 크기
-    'n_epochs': 100,               # 훈련 에포크 수
-    'learning_rate': 0.001         # 학습률
-}
-```
-
-### 고성능 설정 (더 정확한 예측)
-```python
-config = {
-    'hidden_size': 128,
-    'num_attention_heads': 8,
-    'num_encoder_layers': 4,
-    'num_decoder_layers': 4,
-    'n_epochs': 200,
-    'batch_size': 16
-}
-```
-
-## 사용 예시
-
-### 1. 기본 실행
 ```bash
 python main.py
 ```
 
-### 2. Jupyter 노트북 사용
-```bash
-jupyter notebook notebooks/telecom_forecasting_demo.ipynb
+## ⚙️ 설정
+
+`config/config.yaml` 파일에서 다음 설정을 조정할 수 있습니다:
+
+### 데이터 설정
+```yaml
+data:
+  account_filtering:
+    min_total_value: 1000000  # 최소 총 매출액
+    min_occurrence: 3         # 최소 발생 횟수
+    exclude_patterns: ["<할인>", "<포인트>"]  # 제외 패턴
 ```
 
-### 3. 커스텀 설정으로 실행
-```python
-from src.forecasting import TelecomForecaster
+### 모델 설정
+```yaml
+model:
+  use_ensemble: true  # true: TFT + Prophet 앙상블, false: TFT만 사용
+  tft:
+    input_chunk_length: 24    # 입력 시퀀스 길이
+    output_chunk_length: 12   # 출력 시퀀스 길이
+    hidden_size: 64          # 히든 레이어 크기
+    num_attention_heads: 4   # 어텐션 헤드 수
+    n_epochs: 100           # 훈련 에포크
+  ensemble:
+    methods: ["tft", "prophet"]
+    weights: [0.7, 0.3]     # TFT 70%, Prophet 30%
+```
 
-# 커스텀 설정
-config = {
-    'n_epochs': 150,
-    'hidden_size': 96,
-    'num_attention_heads': 6
-}
+### 예측 설정
+```yaml
+forecasting:
+  forecast_horizon: 12       # 예측 기간 (개월)
+  validation_periods: 6      # 검증 기간
+```
 
-forecaster = TelecomForecaster(config)
-results = forecaster.run_full_pipeline(
-    file_path='your_data.csv',
-    target_columns=['5g_users', 'lte_users', '3g_users'],
-    forecast_steps=24  # 24개월 예측
-)
-``` 
+## 📈 예측 결과
+
+### 출력 파일
+
+- `results/forecast_results.csv`: 예측 결과
+- `results/evaluation_results.csv`: 모델 평가 결과
+- `results/forecast_plot.html`: 예측 차트
+- `results/accuracy_plot.html`: 모델 정확도 비교
+- `results/correlation_plot.html`: 계정과목 간 상관관계
+- `results/seasonal_plot.html`: 계절성 분석
+- `results/hierarchical_plot.html`: 계층적 예측 분석
+- `results/dashboard.html`: 종합 대시보드
+
+### 예측 성능 지표
+
+- **MAE**: 평균 절대 오차
+- **MAPE**: 평균 절대 백분율 오차
+- **RMSE**: 평균 제곱근 오차
+- **SMAPE**: 대칭 평균 절대 백분율 오차
+
+## 🔧 주요 기능
+
+### 1. 데이터 전처리
+
+- **계정과목 필터링**: 중요도 기반 계정과목 선택
+- **피벗 변환**: 계정과목별 시계열 데이터 생성
+- **특성 엔지니어링**: 시간적 특성, 지연 특성, 이동평균
+- **정규화**: RobustScaler를 통한 특성 스케일링
+
+### 2. 모델링
+
+- **TFTModel**: Darts의 Temporal Fusion Transformer
+- **Prophet**: Facebook의 시계열 예측 모델
+- **앙상블**: TFT + Prophet 가중 평균
+
+### 3. 시각화
+
+- **예측 결과**: 실제 vs 예측 비교
+- **모델 성능**: 정확도 지표 비교
+- **상관관계**: 계정과목 간 관계 분석
+- **계절성**: 시계열 분해 분석
+
+## 📊 예시 결과
+
+### 예측 결과 예시
+```
+=== 예측 완료 ===
+예측 기간: 12개월
+예측된 계정과목: 10개
+
+최종 예측값 (12개월 후):
+  무선전화_기본료: 1,750,000,000원
+  무선전화_플랫폼이용료: 9,200,000,000원
+  무선전화_통화서비스: 1,500,000,000원
+  무선전화_데이터(TRAFFIC)이용료: 28,000,000원
+  유선전화_기본료: 55,000,000원
+
+성장률 분석 (12개월):
+  무선전화_기본료: +3.12%
+  무선전화_플랫폼이용료: +4.05%
+  무선전화_통화서비스: +75.45%
+  무선전화_데이터(TRAFFIC)이용료: +3.70%
+  유선전화_기본료: +2.94%
+```
+
+## 🤝 기여
+
+프로젝트에 기여하고 싶으시다면:
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## 📄 라이선스
+
+이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+
+## 📞 문의
+
+프로젝트에 대한 문의사항이 있으시면 이슈를 생성해 주세요. 

@@ -1,0 +1,125 @@
+# 통신사 재무 예측 시스템 설정
+
+# 데이터 설정
+data:
+  raw_file: "data/raw/telecom_financial_data.csv"
+  processed_dir: "data/processed"
+  results_dir: "results"
+  
+  # 컬럼 매핑
+  columns:
+    date_col: "BASE_YM"
+    year_col: "BASE_YY"
+    product_col: "ENTR_3_PROD_LEVEL_NM"
+    profit_source_col: "PROFT_SRC_NM"
+    account_code_col: "GL_ACC_LSN_NO"
+    account_name_col: "GL_ACC_LSN_NM"
+    division_col: "SUM_DIV_NM"
+    value_col: "PRFIT_PERSP_1_INDX_VAL"
+  
+  # 계정과목 필터링 설정
+  account_filtering:
+    min_total_value: 1000000  # 최소 총 매출액 (백만원)
+    min_occurrence: 3         # 최소 발생 횟수
+    exclude_patterns: ["<할인>", "<포인트>"]  # 제외할 패턴
+
+# 전처리 설정
+preprocessing:
+  # 시계열 변환
+  time_series:
+    freq: "M"  # 월별
+    fill_method: "ffill"  # 결측치 처리 방법
+    
+  # 피처 엔지니어링
+  features:
+    # 시간적 특성
+    temporal_features: ["month", "quarter", "year", "day_of_week"]
+    # 계절성 특성
+    seasonal_features: ["sin_month", "cos_month", "sin_quarter", "cos_quarter"]
+    # 지연 특성
+    lag_features: [1, 3, 6, 12]
+    # 이동평균
+    rolling_features: [3, 6, 12]
+    
+  # 정규화
+  scaling:
+    method: "robust"  # robust, standard, minmax
+    exclude_cols: ["date", "product", "account_name"]
+
+# 모델 설정
+model:
+  # Darts TFT 모델 설정
+  tft:
+    input_chunk_length: 24
+    output_chunk_length: 12
+    hidden_size: 64
+    num_attention_heads: 4
+    num_encoder_layers: 3
+    num_decoder_layers: 3
+    dropout: 0.1
+    batch_size: 32
+    n_epochs: 100
+    learning_rate: 0.001
+    random_state: 42
+    
+  # Prophet 모델 설정 (보조 모델)
+  prophet:
+    yearly_seasonality: True
+    weekly_seasonality: False
+    daily_seasonality: False
+    seasonality_mode: 'multiplicative'
+    
+  # 앙상블 설정
+  use_ensemble: true  # true: TFT + Prophet 앙상블, false: TFT만 사용
+  ensemble:
+    methods: ["tft", "prophet"]
+    weights: [0.7, 0.3]
+
+# 예측 설정
+forecasting:
+  # 예측 기간
+  forecast_horizon: 12  # 12개월
+  # 검증 기간
+  validation_periods: 6  # 6개월
+  # 신뢰구간
+  confidence_level: 0.95
+  
+  # 계층적 예측
+  hierarchical:
+    levels: ["product", "account_name"]
+    reconciliation_method: "mint"  # minimum trace reconciliation
+
+# 평가 설정
+evaluation:
+  metrics: ["mae", "mape", "rmse", "smape"]
+  cv_folds: 5
+  test_size: 0.2
+
+# 시각화 설정
+visualization:
+  # 차트 설정
+  charts:
+    forecast_plot: true
+    accuracy_plot: true
+    feature_importance: true
+    correlation_matrix: true
+    seasonal_decomposition: true
+    
+  # 대시보드 설정
+  dashboard:
+    port: 8050
+    host: "localhost"
+    theme: "light"
+    
+  # 리포트 설정
+  report:
+    format: "html"
+    include_charts: true
+    include_tables: true
+    include_insights: true
+
+# 로깅 설정
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/telecom_forecast.log" 
