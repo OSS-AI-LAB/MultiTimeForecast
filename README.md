@@ -1,4 +1,4 @@
-# 통신사 재무 예측 시스템 (Telecom Financial Forecasting)
+# TimesFM - 통신사 재무 예측 시스템
 
 Darts 라이브러리의 TFTModel을 활용한 통신사 계정과목별 매출 예측 시스템입니다.
 
@@ -10,9 +10,10 @@ Darts 라이브러리의 TFTModel을 활용한 통신사 계정과목별 매출 
 
 - **계정과목별 예측**: GL_ACC_LSN_NM을 기준으로 한 다변량 시계열 예측
 - **Darts TFTModel**: Temporal Fusion Transformer를 활용한 고성능 예측
-- **계층적 구조**: 제품별 → 계정과목별 계층적 예측
 - **앙상블 모델**: TFT + Prophet 모델 앙상블
 - **동적 특성 엔지니어링**: 시간적 특성, 지연 특성, 이동평균 등
+- **다양한 파일 형식 지원**: CSV, Excel (.xlsx, .xls), DRM 보호 파일 포함
+- **자동 인코딩 감지**: chardet를 사용한 자동 인코딩 감지
 
 ## 📊 데이터 구조
 
@@ -43,14 +44,16 @@ timesFM/
 ├── config/
 │   └── config.yaml              # 설정 파일
 ├── data/
-│   ├── raw/
-│   │   └── telecom_financial_data.csv  # 원본 데이터
+│   ├── raw/                     # 원본 데이터
 │   └── processed/               # 처리된 데이터
 ├── src/
 │   ├── data_processor.py        # 데이터 처리 모듈
 │   ├── models.py               # 예측 모델 (Darts TFTModel)
 │   └── visualizer.py           # 시각화 모듈
+├── notebooks/
+│   └── telecom_forecasting_demo.ipynb  # 주피터 노트북 데모
 ├── results/                    # 예측 결과 및 차트
+├── logs/                       # 로그 파일
 ├── main.py                     # 메인 실행 스크립트
 ├── requirements.txt            # 의존성 목록
 └── README.md                   # 프로젝트 문서
@@ -107,11 +110,11 @@ data:
 model:
   use_ensemble: true  # true: TFT + Prophet 앙상블, false: TFT만 사용
   tft:
-    input_chunk_length: 24    # 입력 시퀀스 길이
-    output_chunk_length: 12   # 출력 시퀀스 길이
+    input_chunk_length: 6     # 입력 시퀀스 길이
+    output_chunk_length: 3    # 출력 시퀀스 길이
     hidden_size: 64          # 히든 레이어 크기
     num_attention_heads: 4   # 어텐션 헤드 수
-    n_epochs: 100           # 훈련 에포크
+    n_epochs: 50            # 훈련 에포크
   ensemble:
     methods: ["tft", "prophet"]
     weights: [0.7, 0.3]     # TFT 70%, Prophet 30%
@@ -190,6 +193,15 @@ forecasting:
   무선전화_통화서비스: +75.45%
   무선전화_데이터(TRAFFIC)이용료: +3.70%
   유선전화_기본료: +2.94%
+```
+
+## 📓 주피터 노트북 사용
+
+프로젝트에는 `notebooks/telecom_forecasting_demo.ipynb` 파일이 포함되어 있어 단계별 분석 과정을 확인할 수 있습니다.
+
+```bash
+# 주피터 노트북 실행
+jupyter notebook notebooks/telecom_forecasting_demo.ipynb
 ```
 
 ## 🤝 기여
