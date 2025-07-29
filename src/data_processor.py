@@ -14,6 +14,12 @@ from sklearn.impute import SimpleImputer
 import warnings
 warnings.filterwarnings('ignore')
 
+# 추가 라이브러리 import
+try:
+    import chardet
+except ImportError:
+    chardet = None
+
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -35,23 +41,92 @@ class TelecomDataProcessor:
             return yaml.safe_load(f)
     
     def load_raw_data(self, file_path: Optional[str] = None) -> pd.DataFrame:
-        """원본 데이터 로드"""
+        """원본 데이터 로드 - 다양한 파일 형식 및 인코딩 지원"""
         if file_path is None:
             file_path = self.config['data']['raw_file']
         
         logger.info(f"원본 데이터 로드: {file_path}")
-        df = pd.read_csv(file_path)
         
-        # 컬럼명 정리
-        columns_config = self.config['data']['columns']
-        df.columns = [col.strip() for col in df.columns]
+        # 파일 확장자 확인
+        file_ext = Path(file_path).suffix.lower()
         
-        # 데이터 타입 변환
-        df[columns_config['date_col']] = pd.to_datetime(df[columns_config['date_col']], format='%Y%m')
-        df[columns_config['value_col']] = pd.to_numeric(df[columns_config['value_col']], errors='coerce')
-        
-        logger.info(f"데이터 로드 완료: {df.shape}")
-        return df
+        try:
+            # Excel 파일 처리 (DRM 보호된 파일 포함)
+            if file_ext in ['.xlsx', '.xls']:
+                logger.info("Excel 파일 감지 - Excel 엔진으로 로드 시도")
+                try:
+                    # openpyxl 엔진으로 시도
+                    df = pd.read_excel(file_path, engine='openpyxl')
+                except Exception as e1:
+                    logger.warning(f"openpyxl 엔진 실패: {e1}")
+                    try:
+                        # xlrd 엔진으로 시도
+                        df = pd.read_excel(file_path, engine='xlrd')
+                    except Exception as e2:
+                        logger.warning(f"xlrd 엔진 실패: {e2}")
+                        # 기본 엔진으로 시도
+                        df = pd.read_excel(file_path)
+            
+            # CSV 파일 처리 (다양한 인코딩 시도)
+            elif file_ext == '.csv':
+                df = None
+                
+                # 1. chardet를 사용한 자동 인코딩 감지
+                if chardet is not None:
+                    try:
+                        with open(file_path, 'rb') as f:
+                            raw_data = f.read()
+                            result = chardet.detect(raw_data)
+                            detected_encoding = result['encoding']
+                            confidence = result['confidence']
+                            
+                        if detected_encoding and confidence > 0.7:
+                            logger.info(f"자동 감지된 인코딩: {detected_encoding} (신뢰도: {confidence:.2f})")
+                            try:
+                                df = pd.read_csv(file_path, encoding=detected_encoding)
+                                logger.info("자동 감지 인코딩으로 성공적으로 로드됨")
+                            except Exception as e:
+                                logger.warning(f"자동 감지 인코딩 실패: {e}")
+                    except Exception as e:
+                        logger.warning(f"자동 인코딩 감지 실패: {e}")
+                
+                # 2. 수동 인코딩 시도
+                if df is None:
+                    encodings = ['utf-8', 'cp949', 'euc-kr', 'latin1', 'iso-8859-1', 'utf-8-sig']
+                    
+                    for encoding in encodings:
+                        try:
+                            logger.info(f"수동 인코딩 {encoding}로 시도")
+                            df = pd.read_csv(file_path, encoding=encoding)
+                            logger.info(f"성공: {encoding} 인코딩으로 로드됨")
+                            break
+                        except UnicodeDecodeError:
+                            logger.warning(f"인코딩 {encoding} 실패")
+                            continue
+                        except Exception as e:
+                            logger.warning(f"인코딩 {encoding}에서 기타 오류: {e}")
+                            continue
+                
+                if df is None:
+                    raise ValueError("모든 인코딩 시도 실패")
+            
+            else:
+                raise ValueError(f"지원하지 않는 파일 형식: {file_ext}")
+            
+            # 컬럼명 정리
+            columns_config = self.config['data']['columns']
+            df.columns = [col.strip() for col in df.columns]
+            
+            # 데이터 타입 변환
+            df[columns_config['date_col']] = pd.to_datetime(df[columns_config['date_col']], format='%Y%m')
+            df[columns_config['value_col']] = pd.to_numeric(df[columns_config['value_col']], errors='coerce')
+            
+            logger.info(f"데이터 로드 완료: {df.shape}")
+            return df
+            
+        except Exception as e:
+            logger.error(f"데이터 로드 실패: {str(e)}")
+            raise
     
     def filter_accounts(self, df: pd.DataFrame) -> pd.DataFrame:
         """중요 계정과목 필터링"""

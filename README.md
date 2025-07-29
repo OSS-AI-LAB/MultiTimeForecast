@@ -76,7 +76,12 @@ pip install -r requirements.txt
 
 ### 2. 데이터 준비
 
-`data/raw/telecom_financial_data.csv` 파일에 원본 데이터를 위치시킵니다.
+다음 파일 형식을 지원합니다:
+- `data/raw/telecom_financial_data.csv` (UTF-8, CP949, EUC-KR 등 다양한 인코딩 지원)
+- `data/raw/telecom_financial_data.xlsx` (Excel 파일, DRM 보호 파일 포함)
+- `data/raw/telecom_financial_data.xls` (Excel 파일)
+
+**참고**: DRM 보호된 Excel 파일도 자동으로 처리됩니다.
 
 ### 3. 실행
 
@@ -143,6 +148,9 @@ forecasting:
 
 ### 1. 데이터 전처리
 
+- **다양한 파일 형식 지원**: CSV, Excel (.xlsx, .xls) 파일 지원
+- **자동 인코딩 감지**: chardet를 사용한 자동 인코딩 감지
+- **DRM 보호 파일 처리**: 보호된 Excel 파일 자동 처리
 - **계정과목 필터링**: 중요도 기반 계정과목 선택
 - **피벗 변환**: 계정과목별 시계열 데이터 생성
 - **특성 엔지니어링**: 시간적 특성, 지연 특성, 이동평균
@@ -197,6 +205,25 @@ forecasting:
 ## 📄 라이선스
 
 이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+
+## 🛠️ 문제 해결
+
+### 인코딩 오류 해결
+```
+ERROR: 'utf-8' codec can't decode byte 0xd0 in position 10: invalid continuation byte
+```
+
+**해결 방법**:
+1. 의존성 재설치: `pip install -r requirements.txt`
+2. 시스템 재실행: `python main.py`
+
+### DRM 보호 파일 오류 해결
+Excel 파일이 DRM으로 보호되어 있는 경우에도 자동으로 처리됩니다.
+
+### 기타 문제
+- 가상환경이 활성화되어 있는지 확인
+- Python 3.11 이상 버전 사용
+- 충분한 메모리 확보 (최소 8GB 권장)
 
 ## 📞 문의
 
