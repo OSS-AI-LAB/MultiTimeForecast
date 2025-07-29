@@ -48,25 +48,37 @@ preprocessing:
 
 # 모델 설정
 model:
-  # Darts TFT 모델 설정
+  # Darts TFT 모델 설정 (최신 버전 파라미터)
   tft:
-    input_chunk_length: 12  # 24에서 12로 줄임
-    output_chunk_length: 6  # 12에서 6으로 줄임
-    hidden_size: 64
-    lstm_layers: 3
-    num_attention_heads: 4
-    dropout: 0.1
-    batch_size: 32
-    n_epochs: 100
+    # 필수 파라미터 (29개 데이터포인트에 맞게 조정)
+    input_chunk_length: 6     # 입력 시퀀스 길이 (12->6로 감소)
+    output_chunk_length: 3    # 출력 시퀀스 길이 (6->3로 감소)
+    
+    # 모델 아키텍처 파라미터
+    hidden_size: 64           # 히든 레이어 크기
+    lstm_layers: 1            # LSTM 레이어 수 (3->1로 감소)
+    num_attention_heads: 4    # 어텐션 헤드 수
+    full_attention: false     # 전체 어텐션 사용 여부
+    feed_forward: "GatedResidualNetwork"  # 피드포워드 네트워크 타입
+    dropout: 0.1              # 드롭아웃 비율
+    hidden_continuous_size: 8 # 연속 변수 처리 히든 크기
+    
+    # 특성 관련 파라미터
+    use_static_covariates: true  # 정적 공변량 사용
+    norm_type: "LayerNorm"       # 정규화 타입
+    
+    # 훈련 관련 파라미터
+    n_epochs: 50              # 훈련 에포크 (100->50으로 감소)
+    batch_size: 32            # 배치 크기
     optimizer_kwargs:
-      lr: 0.001
-    random_state: 42
+      lr: 0.001               # 학습률
+    random_state: 42          # 랜덤 시드
     
   # Prophet 모델 설정 (보조 모델)
   prophet:
-    yearly_seasonality: True
-    weekly_seasonality: False
-    daily_seasonality: False
+    yearly_seasonality: true
+    weekly_seasonality: false
+    daily_seasonality: false
     seasonality_mode: 'multiplicative'
     
   # 앙상블 설정
@@ -122,4 +134,4 @@ visualization:
 logging:
   level: "INFO"
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  file: "logs/telecom_forecast.log" 
+  file: "logs/telecom_forecast.log"
