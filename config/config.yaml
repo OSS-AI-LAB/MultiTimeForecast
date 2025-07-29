@@ -13,7 +13,6 @@ data:
     year_col: "BASE_YY"
     product_col: "ENTR_3_PROD_LEVEL_NM"
     profit_source_col: "PROFT_SRC_NM"
-    account_code_col: "GL_ACC_LSN_NO"
     account_name_col: "GL_ACC_LSN_NM"
     division_col: "SUM_DIV_NM"
     value_col: "PRFIT_PERSP_1_INDX_VAL"
@@ -54,13 +53,13 @@ model:
     input_chunk_length: 24
     output_chunk_length: 12
     hidden_size: 64
+    lstm_layers: 3
     num_attention_heads: 4
-    n_encoder_layers: 3
-    n_decoder_layers: 3
     dropout: 0.1
     batch_size: 32
     n_epochs: 100
-    lr: 0.001
+    optimizer_kwargs:
+      lr: 0.001
     random_state: 42
     
   # Prophet 모델 설정 (보조 모델)
