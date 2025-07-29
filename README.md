@@ -21,20 +21,32 @@ timesFM/
 
 ## 설치 및 실행
 
-1. 가상환경 생성 및 활성화:
+### 시스템 요구사항
+- Python 3.11 이상
+- 최소 8GB RAM (GPU 사용 권장)
+
+### 1. 가상환경 생성 및 활성화:
 ```bash
+# Python 3.11 확인
+python --version
+
+# 가상환경 생성
 python -m venv venv
 source venv/bin/activate  # macOS/Linux
 # 또는
 venv\Scripts\activate     # Windows
 ```
 
-2. 패키지 설치:
+### 2. 패키지 설치:
 ```bash
+# pip 업그레이드
+pip install --upgrade pip
+
+# 패키지 설치
 pip install -r requirements.txt
 ```
 
-3. Jupyter 노트북 실행:
+### 3. Jupyter 노트북 실행:
 ```bash
 jupyter notebook
 ```
