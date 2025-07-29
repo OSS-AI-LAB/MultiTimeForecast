@@ -51,7 +51,7 @@ class TelecomForecaster:
                     times=dates,
                     values=series_data,
                     fill_missing_dates=True,
-                    freq='M'  # 월별 빈도
+                    freq='MS'  # 월별 빈도
                 )
                 
                 time_series_dict[col] = ts
@@ -69,12 +69,12 @@ class TelecomForecaster:
             output_chunk_length=tft_config['output_chunk_length'],
             hidden_size=tft_config['hidden_size'],
             num_attention_heads=tft_config['num_attention_heads'],
-            num_encoder_layers=tft_config['num_encoder_layers'],
-            num_decoder_layers=tft_config['num_decoder_layers'],
+            n_encoder_layers=tft_config['n_encoder_layers'],
+            n_decoder_layers=tft_config['n_decoder_layers'],
             dropout=tft_config['dropout'],
             batch_size=tft_config['batch_size'],
             n_epochs=tft_config['n_epochs'],
-            learning_rate=tft_config['learning_rate'],
+            lr=tft_config['lr'],
             random_state=tft_config['random_state'],
             pl_trainer_kwargs={
                 "accelerator": "auto",
@@ -120,7 +120,7 @@ class TelecomForecaster:
                 np.column_stack([ts.values() for ts in combined_series]),
                 columns=target_columns,
                 fill_missing_dates=True,
-                freq='M'
+                freq='MS'
             )
             
             # TFT 모델 훈련
@@ -170,7 +170,7 @@ class TelecomForecaster:
                     np.column_stack([ts.values() for ts in combined_series]),
                     columns=target_columns,
                     fill_missing_dates=True,
-                    freq='M'
+                    freq='MS'
                 )
                 
                 # 예측 수행
@@ -271,7 +271,7 @@ class TelecomForecaster:
                     np.column_stack([ts.values() for ts in combined_series]),
                     columns=target_columns,
                     fill_missing_dates=True,
-                    freq='M'
+                    freq='MS'
                 )
                 
                 # 훈련/테스트 분할

@@ -55,12 +55,12 @@ model:
     output_chunk_length: 12
     hidden_size: 64
     num_attention_heads: 4
-    num_encoder_layers: 3
-    num_decoder_layers: 3
+    n_encoder_layers: 3
+    n_decoder_layers: 3
     dropout: 0.1
     batch_size: 32
     n_epochs: 100
-    learning_rate: 0.001
+    lr: 0.001
     random_state: 42
     
   # Prophet 모델 설정 (보조 모델)
