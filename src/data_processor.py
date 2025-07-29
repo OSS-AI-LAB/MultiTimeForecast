@@ -157,12 +157,16 @@ class TelecomDataProcessor:
                                 logger.info(f"자동 감지된 구분자: '{best_delimiter}' (필드 수: {max_fields})")
                                 
                                 try:
-                                    # 다양한 CSV 파싱 옵션 시도
+                                    # 다양한 CSV 파싱 옵션 시도 (따옴표 처리 중심)
                                     csv_options = [
-                                        {'delimiter': best_delimiter},
-                                        {'delimiter': best_delimiter, 'quoting': 3},  # QUOTE_NONE
+                                        {'delimiter': best_delimiter, 'quotechar': '"', 'quoting': 1},  # QUOTE_ALL
+                                        {'delimiter': best_delimiter, 'quotechar': '"', 'quoting': 0},  # QUOTE_MINIMAL
+                                        {'delimiter': best_delimiter, 'quotechar': '"', 'quoting': 2},  # QUOTE_NONNUMERIC
                                         {'delimiter': best_delimiter, 'quotechar': '"'},
-                                        {'delimiter': best_delimiter, 'escapechar': '\\'}
+                                        {'delimiter': best_delimiter, 'quoting': 3},  # QUOTE_NONE
+                                        {'delimiter': best_delimiter, 'escapechar': '\\'},
+                                        {'delimiter': best_delimiter, 'quotechar': "'", 'quoting': 1},  # 작은따옴표
+                                        {'delimiter': best_delimiter, 'quotechar': "'", 'quoting': 0}   # 작은따옴표
                                     ]
                                     
                                     for options in csv_options:
@@ -190,12 +194,16 @@ class TelecomDataProcessor:
                     
                     for encoding in encodings:
                         for delimiter in delimiters:
-                            # 다양한 CSV 파싱 옵션 시도
+                            # 다양한 CSV 파싱 옵션 시도 (따옴표 처리 중심)
                             csv_options = [
-                                {'delimiter': delimiter},
-                                {'delimiter': delimiter, 'quoting': 3},  # QUOTE_NONE
+                                {'delimiter': delimiter, 'quotechar': '"', 'quoting': 1},  # QUOTE_ALL
+                                {'delimiter': delimiter, 'quotechar': '"', 'quoting': 0},  # QUOTE_MINIMAL
+                                {'delimiter': delimiter, 'quotechar': '"', 'quoting': 2},  # QUOTE_NONNUMERIC
                                 {'delimiter': delimiter, 'quotechar': '"'},
-                                {'delimiter': delimiter, 'escapechar': '\\'}
+                                {'delimiter': delimiter, 'quoting': 3},  # QUOTE_NONE
+                                {'delimiter': delimiter, 'escapechar': '\\'},
+                                {'delimiter': delimiter, 'quotechar': "'", 'quoting': 1},  # 작은따옴표
+                                {'delimiter': delimiter, 'quotechar': "'", 'quoting': 0}   # 작은따옴표
                             ]
                             
                             for options in csv_options:
@@ -218,7 +226,24 @@ class TelecomDataProcessor:
                             break
                 
                 if df is None:
-                    raise ValueError("모든 인코딩 시도 실패")
+                    # 최후의 수단: 정확한 CSV 파싱 시도
+                    logger.info("최후의 수단: 정확한 CSV 파싱 시도")
+                    try:
+                        import csv
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            reader = csv.reader(f)
+                            rows = list(reader)
+                        
+                        if len(rows) > 1:
+                            header = rows[0]
+                            data_rows = rows[1:]
+                            df = pd.DataFrame(data_rows, columns=header)
+                            logger.info(f"CSV 모듈로 성공: {len(data_rows)}개 행 로드됨")
+                        else:
+                            raise ValueError("데이터가 부족함")
+                    except Exception as e:
+                        logger.error(f"CSV 모듈 파싱도 실패: {e}")
+                        raise ValueError("모든 인코딩 시도 실패")
             
             else:
                 raise ValueError(f"지원하지 않는 파일 형식: {file_ext}")
