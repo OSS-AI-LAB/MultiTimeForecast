@@ -50,8 +50,8 @@ preprocessing:
 model:
   # Darts TFT 모델 설정
   tft:
-    input_chunk_length: 24
-    output_chunk_length: 12
+    input_chunk_length: 12  # 24에서 12로 줄임
+    output_chunk_length: 6  # 12에서 6으로 줄임
     hidden_size: 64
     lstm_layers: 3
     num_attention_heads: 4
