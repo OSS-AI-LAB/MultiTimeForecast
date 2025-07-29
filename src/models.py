@@ -431,6 +431,12 @@ class TelecomForecaster:
                             actual_values = test_series.values()
                             predicted_values = forecast.values()
                             
+                            # 다변량 시계열인 경우 1차원으로 변환
+                            if actual_values.ndim > 1:
+                                actual_values = actual_values.flatten()
+                            if predicted_values.ndim > 1:
+                                predicted_values = predicted_values.flatten()
+                            
                             col_metrics = {}
                             for metric_name in ['mae', 'mape', 'rmse', 'smape']:
                                 col_metrics[metric_name] = self.safe_metric_calculation(
