@@ -12,7 +12,7 @@ INFO:src.models:TimeSeries 생성: 무선전화_기본료 - 29개 데이터포�
 INFO:src.models:TimeSeries 생성: 무선전화_기타 - 29개 데이터포인트
 INFO:src.models:TFT 모델 훈련 시작...
 INFO:src.models:TFT 모델 생성 완료
-ERROR:darts.models.forecasting.tft_model:ValueError: TFTModel requires future covariates. The model applies multi-head attention queries on future inputs. Consider specifying a future encoder with `add_encoders` or setting `add_relative_index` to `True` at model creation (read TFT model docs for more information). These will automatically generate `future_covariates` from indexes.
-ERROR:__main__:시스템 실행 중 오류 발생: TFTModel requires future covariates. The model applies multi-head attention queries on future inputs. Consider specifying a future encoder with `add_encoders` or setting `add_relative_index` to `True` at model creation (read TFT model docs for more information). These will automatically generate `future_covariates` from indexes.
+ERROR:main_logger:ValueError: The input `series` are too short to extract even a single sample. Expected min length: `36`, received max length: `29`.
+ERROR:__main__:시스템 실행 중 오류 발생: The input `series` are too short to extract even a single sample. Expected min length: `36`, received max length: `29`.
 
-오류 발생: TFTModel requires future covariates. The model applies multi-head attention queries on future inputs. Consider specifying a future encoder with `add_encoders` or setting `add_relative_index` to `True` at model creation (read TFT model docs for more information). These will automatically generate `future_covariates` from indexes.
+오류 발생: The input `series` are too short to extract even a single sample. Expected min length: `36`, received max length: `29`.
