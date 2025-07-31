@@ -43,7 +43,7 @@ preprocessing:
     
   # 정규화
   scaling:
-    method: "robust"  # robust, standard, minmax
+    method: "none"  # robust, standard, minmax, none
     exclude_cols: ["date", "product", "account_name"]
 
 # 모델 설정

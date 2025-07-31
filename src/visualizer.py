@@ -42,12 +42,34 @@ class TelecomVisualizer:
     
     def create_forecast_plot(self, actual_data: pd.DataFrame, 
                            forecast_data: pd.DataFrame,
-                           target_columns: List[str]) -> go.Figure:
+                           target_columns: List[str],
+                           data_processor=None) -> go.Figure:
         """예측 결과 시각화 - 현대적 디자인"""
+        # vertical_spacing을 동적으로 계산하여 오류 방지
+        n_rows = len(target_columns)
+        if n_rows <= 1:
+            vertical_spacing = 0.1
+        else:
+            vertical_spacing = min(0.08, 1.0 / (n_rows + 1))
+        
+        # 정규화된 데이터를 원본 값으로 변환
+        actual_display = actual_data.copy()
+        forecast_display = forecast_data.copy()
+        
+        if data_processor and hasattr(data_processor, 'inverse_scale_features'):
+            try:
+                # 실제 데이터 역변환
+                actual_display = data_processor.inverse_scale_features(actual_display)
+                # 예측 데이터 역변환
+                forecast_display = data_processor.inverse_scale_features(forecast_display)
+                logger.info("예측 결과를 원본 값으로 변환 완료")
+            except Exception as e:
+                logger.warning(f"데이터 역변환 실패: {e}")
+        
         fig = make_subplots(
-            rows=len(target_columns), cols=1,
+            rows=n_rows, cols=1,
             subplot_titles=[f"<b>{col}</b>" for col in target_columns],
-            vertical_spacing=0.08,
+            vertical_spacing=vertical_spacing,
             specs=[[{"secondary_y": False}] for _ in target_columns]
         )
         
@@ -56,12 +78,12 @@ class TelecomVisualizer:
                  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
         
         for i, col in enumerate(target_columns):
-            if col in actual_data.columns:
+            if col in actual_display.columns:
                 # 실제 데이터
                 fig.add_trace(
                     go.Scatter(
-                        x=actual_data.index,
-                        y=actual_data[col],
+                        x=actual_display.index,
+                        y=actual_display[col],
                         mode='lines+markers',
                         name=f'{col} (실제)',
                         line=dict(color=colors[i % len(colors)], width=3),
@@ -72,12 +94,12 @@ class TelecomVisualizer:
                     row=i+1, col=1
                 )
             
-            if col in forecast_data.columns:
+            if col in forecast_display.columns:
                 # 예측 데이터
                 fig.add_trace(
                     go.Scatter(
-                        x=forecast_data.index,
-                        y=forecast_data[col],
+                        x=forecast_display.index,
+                        y=forecast_display[col],
                         mode='lines+markers',
                         name=f'{col} (예측)',
                         line=dict(color=colors[i % len(colors)], width=3, dash='dash'),
@@ -142,10 +164,16 @@ class TelecomVisualizer:
         
         # 메트릭별로 서브플롯 생성
         metrics = df_accuracy['Metric'].unique()
+        n_rows = len(metrics)
+        if n_rows <= 1:
+            vertical_spacing = 0.1
+        else:
+            vertical_spacing = min(0.12, 1.0 / (n_rows + 1))
+        
         fig = make_subplots(
-            rows=len(metrics), cols=1,
+            rows=n_rows, cols=1,
             subplot_titles=[f"<b>{metric}</b>" for metric in metrics],
-            vertical_spacing=0.12
+            vertical_spacing=vertical_spacing
         )
         
         # 현대적인 색상 팔레트
@@ -271,10 +299,16 @@ class TelecomVisualizer:
     def create_seasonal_decomposition_plot(self, time_series_dict: Dict,
                                          target_columns: List[str]) -> go.Figure:
         """계절성 분해 시각화"""
+        n_rows = len(target_columns)
+        if n_rows <= 1:
+            vertical_spacing = 0.1
+        else:
+            vertical_spacing = min(0.05, 1.0 / (n_rows + 1))
+        
         fig = make_subplots(
-            rows=len(target_columns), cols=1,
+            rows=n_rows, cols=1,
             subplot_titles=[f"{col} - 계절성 분해" for col in target_columns],
-            vertical_spacing=0.05
+            vertical_spacing=vertical_spacing
         )
         
         for i, col in enumerate(target_columns):
@@ -611,7 +645,8 @@ class TelecomVisualizer:
     
     def generate_report(self, processed_data: pd.DataFrame,
                        results: Dict,
-                       target_columns: List[str]) -> str:
+                       target_columns: List[str],
+                       data_processor=None) -> str:
         """종합 분석 리포트 생성"""
         logger.info("=== 시각화 리포트 생성 시작 ===")
         
@@ -619,7 +654,8 @@ class TelecomVisualizer:
         forecast_fig = self.create_forecast_plot(
             processed_data, 
             results.get('ensemble_forecast', pd.DataFrame()),
-            target_columns
+            target_columns,
+            data_processor
         )
         forecast_fig.write_html(self.results_dir / "forecast_plot.html")
         

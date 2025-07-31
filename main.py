@@ -80,7 +80,8 @@ def main():
         report_path = visualizer.generate_report(
             processed_data=processed_data,
             results=results,
-            target_columns=target_columns
+            target_columns=target_columns,
+            data_processor=data_processor
         )
         
         # 7. 결과 요약

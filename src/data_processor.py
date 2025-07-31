@@ -407,7 +407,11 @@ class TelecomDataProcessor:
             self.scaler = RobustScaler()
         elif scaling_config['method'] == 'standard':
             self.scaler = StandardScaler()
+        elif scaling_config['method'] == 'none':
+            logger.info("스케일링 비활성화됨")
+            return df  # 스케일링 없음
         else:
+            logger.warning(f"알 수 없는 스케일링 방법: {scaling_config['method']}")
             return df  # 스케일링 없음
         
         if fit:
@@ -417,6 +421,24 @@ class TelecomDataProcessor:
                 df[scale_cols] = self.scaler.transform(df[scale_cols])
         
         logger.info(f"특성 스케일링 완료: {scaling_config['method']}")
+        return df
+    
+    def inverse_scale_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """정규화된 특성을 원본 값으로 역변환"""
+        df = df.copy()
+        scaling_config = self.config['preprocessing']['scaling']
+        
+        # 스케일링 대상 컬럼 선택
+        exclude_cols = scaling_config['exclude_cols']
+        scale_cols = [col for col in df.columns if col not in exclude_cols]
+        
+        if self.scaler is not None and scale_cols:
+            try:
+                df[scale_cols] = self.scaler.inverse_transform(df[scale_cols])
+                logger.info("특성 역변환 완료")
+            except Exception as e:
+                logger.warning(f"특성 역변환 실패: {e}")
+        
         return df
     
     def create_hierarchical_structure(self, df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
