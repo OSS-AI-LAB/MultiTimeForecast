@@ -47,13 +47,20 @@ def main():
         
         # 모델 설정 정보 출력
         model_config = data_processor.config['model']
-        use_ensemble = model_config['use_ensemble']
-        if use_ensemble:
-            print(f"   모델: TFT + Prophet 앙상블")
-            weights = model_config['ensemble']['weights']
-            print(f"   가중치: TFT({weights[0]:.1%}), Prophet({weights[1]:.1%})")
+        ensemble_config = model_config.get('ensemble', {})
+        models = ensemble_config.get('models', ['tft'])
+        weights = ensemble_config.get('weights', [1.0])
+        
+        if len(models) == 1:
+            print(f"   모델: {models[0].upper()}만 사용")
         else:
-            print(f"   모델: TFT만 사용")
+            print(f"   모델: {' + '.join([m.upper() for m in models])} 앙상블")
+            weight_str = ", ".join([f"{m.upper()}({w:.1%})" for m, w in zip(models, weights)])
+            print(f"   가중치: {weight_str}")
+        
+        # 자동 선택 여부 확인
+        if ensemble_config.get('auto_select', {}).get('enabled', False):
+            print(f"   자동 선택: 활성화 (상위 {ensemble_config['auto_select']['top_k']}개 모델)")
         
         # 4. 타겟 컬럼 정의 (주요 계정과목들)
         target_columns = feature_info['account_columns'][:10]  # 상위 10개 계정과목

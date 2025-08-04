@@ -305,7 +305,9 @@ class TelecomVisualizer:
         if n_rows <= 1:
             vertical_spacing = 0.1
         else:
-            vertical_spacing = min(0.08, 1.0 / (n_rows + 1))
+            # matplotlib 제약: vertical_spacing <= 1.0 / (rows - 1)
+            max_spacing = 1.0 / (n_rows - 1)
+            vertical_spacing = min(0.08, max_spacing * 0.8)  # 안전 마진 적용
         
         fig = make_subplots(
             rows=n_rows, cols=1,

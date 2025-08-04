@@ -25,7 +25,9 @@ class ChartCreators:
         if n_rows <= 1:
             vertical_spacing = 0.1
         else:
-            vertical_spacing = min(0.08, 1.0 / (n_rows + 1))
+            # matplotlib 제약: vertical_spacing <= 1.0 / (rows - 1)
+            max_spacing = 1.0 / (n_rows - 1)
+            vertical_spacing = min(0.08, max_spacing * 0.8)  # 안전 마진 적용
         
         # 정규화된 데이터를 원본 값으로 변환
         actual_display = actual_data.copy()
@@ -230,11 +232,18 @@ class ChartCreators:
         metrics = df_accuracy['Metric'].unique()
         n_metrics = len(metrics)
         
-        # 서브플롯 간격을 더 넓게 설정
+        # 서브플롯 간격을 동적으로 계산
+        if n_metrics <= 1:
+            vertical_spacing = 0.1
+        else:
+            # matplotlib 제약: vertical_spacing <= 1.0 / (rows - 1)
+            max_spacing = 1.0 / (n_metrics - 1)
+            vertical_spacing = min(0.15, max_spacing * 0.8)  # 안전 마진 적용
+        
         fig = make_subplots(
             rows=n_metrics, cols=1,
             subplot_titles=[f"<b>{metric} - 모델 성능 비교</b>" for metric in metrics],
-            vertical_spacing=0.15,  # 간격 증가
+            vertical_spacing=vertical_spacing,
             specs=[[{"secondary_y": False}] for _ in range(n_metrics)]
         )
         

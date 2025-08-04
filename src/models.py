@@ -303,9 +303,8 @@ class TelecomForecaster:
         models['transformer'] = transformer_models
         logger.info("Transformer 모델 훈련 완료")
         
-        # 앙상블 사용 여부에 따라 Prophet 모델 훈련
-        use_ensemble = self.config['model']['use_ensemble']
-        if use_ensemble:
+        # Prophet 모델 훈련 (앙상블에 포함된 경우만)
+        if self.should_train_model('prophet'):
             logger.info("Prophet 모델 훈련 시작...")
             prophet_models = {}
             
@@ -318,7 +317,7 @@ class TelecomForecaster:
             models['prophet'] = prophet_models
             logger.info("Prophet 모델 훈련 완료")
         else:
-            logger.info("앙상블 비활성화: Prophet 모델 제외")
+            logger.info("Prophet 모델 제외 (앙상블에 포함되지 않음)")
         
         return models
     
@@ -384,9 +383,8 @@ class TelecomForecaster:
             predictions['transformer'] = transformer_predictions
             logger.info("Transformer 모델 예측 완료")
         
-        # 앙상블 사용 여부에 따라 Prophet 모델 예측
-        use_ensemble = self.config['model']['use_ensemble']
-        if use_ensemble and 'prophet' in models:
+        # Prophet 모델 예측 (앙상블에 포함된 경우만)
+        if self.should_train_model('prophet') and 'prophet' in models:
             logger.info("Prophet 모델 예측 시작...")
             prophet_models = models['prophet']
             prophet_predictions = {}
@@ -404,32 +402,14 @@ class TelecomForecaster:
     
     def ensemble_predictions(self, predictions: Dict[str, pd.DataFrame],
                            target_columns: List[str]) -> pd.DataFrame:
-        """향상된 앙상블 예측 - 다중 모델 지원"""
-        strategy = self.get_model_strategy()
+        """향상된 앙상블 예측 - 새로운 설정 구조 지원"""
         
-        if strategy == "tft_only":
-            # TFT만 사용
-            tft_pred = predictions.get('tft', pd.DataFrame())
-            logger.info("TFT 전용 모드: TFT 예측 결과만 사용")
-            return tft_pred
-        
-        elif strategy == "ensemble":
-            # 기존 TFT + Prophet 앙상블
-            return self._traditional_ensemble(predictions, target_columns)
-        
-        elif strategy == "multi_model":
-            # 다중 모델 앙상블
-            return self._multi_model_ensemble(predictions, target_columns)
-        
-        elif strategy == "auto_select":
-            # 성능 기반 자동 선택 (평가 결과 필요)
+        # 자동 선택이 활성화되어 있으면 성능 기반 선택
+        if self.should_use_auto_select():
             return self._auto_select_ensemble(predictions, target_columns)
         
-        else:
-            # 기본값: TFT만 사용
-            tft_pred = predictions.get('tft', pd.DataFrame())
-            logger.info(f"알 수 없는 전략 '{strategy}': TFT 예측 결과만 사용")
-            return tft_pred
+        # 일반 앙상블
+        return self._simple_ensemble(predictions, target_columns)
     
     def _traditional_ensemble(self, predictions: Dict[str, pd.DataFrame],
                             target_columns: List[str]) -> pd.DataFrame:
@@ -564,6 +544,53 @@ class TelecomForecaster:
         logger.info("자동 선택 모드: TFT 예측 결과 사용")
         return predictions.get('tft', pd.DataFrame())
     
+    def _simple_ensemble(self, predictions: Dict[str, pd.DataFrame],
+                        target_columns: List[str]) -> pd.DataFrame:
+        """단순 앙상블 - 설정된 모델과 가중치 사용"""
+        ensemble_models = self.get_ensemble_models()
+        weights = self.get_ensemble_weights()
+        
+        logger.info(f"앙상블 모델: {ensemble_models}")
+        logger.info(f"앙상블 가중치: {weights}")
+        
+        # 사용할 모델의 예측 결과 수집
+        model_predictions = {}
+        for model_name in ensemble_models:
+            if model_name in predictions:
+                if model_name in ['lstm', 'gru', 'transformer']:
+                    # 단변량 모델들의 결과 통합
+                    model_pred = self._combine_univariate_predictions(
+                        predictions[model_name], target_columns
+                    )
+                else:
+                    # 다변량 모델 (TFT, Prophet)
+                    model_pred = predictions[model_name]
+                
+                if not model_pred.empty:
+                    model_predictions[model_name] = model_pred
+        
+        if not model_predictions:
+            logger.warning("사용 가능한 모델 예측 결과가 없음")
+            return pd.DataFrame()
+        
+        # 앙상블 계산
+        ensemble_result = pd.DataFrame()
+        for i, model_name in enumerate(ensemble_models):
+            if model_name in model_predictions:
+                model_pred = model_predictions[model_name]
+                weight = weights[i] if i < len(weights) else 1.0 / len(ensemble_models)
+                
+                if ensemble_result.empty:
+                    ensemble_result = weight * model_pred
+                else:
+                    # 컬럼명 맞추기
+                    common_cols = list(set(ensemble_result.columns) & set(model_pred.columns))
+                    for col in common_cols:
+                        ensemble_result[col] += weight * model_pred[col]
+        
+        logger.info(f"앙상블 완료: {list(model_predictions.keys())}")
+        return ensemble_result
+    
     def safe_metric_calculation(self, actual: np.ndarray, predicted: np.ndarray, metric_name: str) -> float:
         """안전한 메트릭 계산 (오류 처리 포함)"""
         try:
@@ -683,9 +710,8 @@ class TelecomForecaster:
                 logger.error(f"TFT 모델 평가 전체 실패: {e}")
                 evaluation_results['tft'] = {}
         
-        # 앙상블 사용 여부에 따라 Prophet 모델 평가
-        use_ensemble = self.config['model']['use_ensemble']
-        if use_ensemble and 'prophet' in models:
+        # Prophet 모델 평가 (앙상블에 포함된 경우만)
+        if self.should_train_model('prophet') and 'prophet' in models:
             logger.info("Prophet 모델 평가 시작...")
             try:
                 prophet_models = models['prophet']
@@ -918,19 +944,46 @@ class TelecomForecaster:
         """다중 모델 앙상블 사용 여부 확인"""
         return self.config['model'].get('multi_model_ensemble', {}).get('enabled', False)
     
+    def get_ensemble_config(self) -> Dict:
+        """앙상블 설정 반환"""
+        return self.config['model'].get('ensemble', {})
+    
     def get_ensemble_models(self) -> List[str]:
         """앙상블에 사용할 모델 목록 반환"""
-        if self.should_use_multi_model_ensemble():
-            return self.config['model']['multi_model_ensemble']['models']
-        else:
-            return self.config['model']['ensemble']['methods']
+        ensemble_config = self.get_ensemble_config()
+        return ensemble_config.get('models', ['tft'])
     
     def get_ensemble_weights(self) -> List[float]:
         """앙상블 가중치 반환"""
-        if self.should_use_multi_model_ensemble():
-            return self.config['model']['multi_model_ensemble']['weights']
-        else:
-            return self.config['model']['ensemble']['weights']
+        ensemble_config = self.get_ensemble_config()
+        models = self.get_ensemble_models()
+        weights = ensemble_config.get('weights', [])
+        
+        # 가중치 개수가 모델 개수와 다르면 균등 분배
+        if len(weights) != len(models):
+            weights = [1.0 / len(models)] * len(models)
+        
+        return weights
+    
+    def should_use_auto_select(self) -> bool:
+        """자동 선택 사용 여부 확인"""
+        ensemble_config = self.get_ensemble_config()
+        return ensemble_config.get('auto_select', {}).get('enabled', False)
+    
+    def get_auto_select_config(self) -> Dict:
+        """자동 선택 설정 반환"""
+        ensemble_config = self.get_ensemble_config()
+        return ensemble_config.get('auto_select', {})
+    
+    def should_train_model(self, model_name: str) -> bool:
+        """특정 모델 훈련 여부 확인"""
+        # 자동 선택이 활성화되어 있으면 모든 모델 훈련
+        if self.should_use_auto_select():
+            return True
+        
+        # 자동 선택이 비활성화되어 있으면 앙상블에 포함된 모델만 훈련
+        ensemble_models = self.get_ensemble_models()
+        return model_name in ensemble_models
     
     def select_best_models(self, evaluation_results: Dict[str, Dict[str, Dict[str, float]]], 
                           target_columns: List[str], top_k: int = 3) -> List[str]:

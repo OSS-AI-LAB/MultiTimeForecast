@@ -125,18 +125,19 @@ model:
       lr: 0.001
     random_state: 42
     
-  # 앙상블 설정
-  use_ensemble: true  # true: TFT + Prophet 앙상블, false: TFT만 사용
+  # 앙상블 설정 (간단 버전)
   ensemble:
-    methods: ["tft", "prophet"]
-    weights: [0.7, 0.3]
+    # 사용할 모델 선택
+    models: ["tft", "prophet"]  # ["tft"], ["tft", "prophet"], ["tft", "prophet", "lstm", "gru", "transformer"]
     
-  # 다중 모델 앙상블 설정
-  multi_model_ensemble:
-    enabled: false  # true로 설정하면 모든 모델 사용
-    models: ["tft", "prophet", "lstm", "gru", "transformer"]
-    weights: [0.4, 0.2, 0.15, 0.15, 0.1]  # TFT, Prophet, LSTM, GRU, Transformer
-    selection_criteria: "performance"  # "performance", "equal", "custom"
+    # 가중치 설정 (모델 순서와 일치)
+    weights: [0.7, 0.3]  # TFT 70%, Prophet 30%
+    
+    # 자동 선택 옵션
+    auto_select:
+      enabled: false  # true로 설정하면 성능 기반 자동 선택
+      top_k: 3  # 상위 k개 모델 선택
+      metric: "mape"  # 선택 기준 메트릭
 
 # 예측 설정
 forecasting:
