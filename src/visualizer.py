@@ -299,7 +299,8 @@ class TelecomVisualizer:
 
     
     def create_seasonal_decomposition_plot(self, time_series_dict: Dict,
-                                         target_columns: List[str]) -> go.Figure:
+                                         target_columns: List[str],
+                                         data_processor=None) -> go.Figure:
         """계절성 분해 시각화 - 개선된 디자인"""
         n_rows = len(target_columns)
         if n_rows <= 1:
@@ -330,6 +331,18 @@ class TelecomVisualizer:
                     # 다변량 시계열인 경우 1차원으로 변환
                     if hasattr(values, 'ndim') and values.ndim > 1:
                         values = values.flatten()
+                    
+                    # 원본 스케일로 역변환 (data_processor가 있는 경우)
+                    if data_processor and hasattr(data_processor, 'inverse_scale_features'):
+                        try:
+                            # DataFrame으로 변환하여 역변환
+                            temp_df = pd.DataFrame({col: values})
+                            temp_df = data_processor.inverse_scale_features(temp_df)
+                            values = temp_df[col].values
+                            logger.info(f"계절성 분석을 위해 {col} 데이터를 원본 스케일로 역변환 완료")
+                        except Exception as e:
+                            logger.warning(f"계절성 분석 데이터 역변환 실패 ({col}): {e}")
+                            # 역변환 실패 시 정규화된 값 그대로 사용
                     
                     # 시간 인덱스 추출
                     if hasattr(series, 'time_index'):
@@ -757,7 +770,8 @@ class TelecomVisualizer:
         # 4. 계절성 분해 시각화
         seasonal_fig = self.create_seasonal_decomposition_plot(
             results.get('time_series_dict', {}),
-            target_columns
+            target_columns,
+            data_processor
         )
         seasonal_fig.write_html(self.results_dir / "seasonal_plot.html")
         
@@ -766,9 +780,19 @@ class TelecomVisualizer:
         # 6. 대시보드 생성
         dashboard_path = self.create_dashboard(results, processed_data, target_columns, data_processor)
         
-        # 7. 예측 결과 CSV 저장
+        # 7. 예측 결과 CSV 저장 (원본 스케일로 역변환)
         if 'ensemble_forecast' in results:
-            results['ensemble_forecast'].to_csv(self.results_dir / "forecast_results.csv")
+            # 예측 결과를 원본 스케일로 역변환
+            if data_processor and hasattr(data_processor, 'inverse_scale_features'):
+                try:
+                    forecast_original = data_processor.inverse_scale_features(results['ensemble_forecast'])
+                    forecast_original.to_csv(self.results_dir / "forecast_results.csv")
+                    logger.info("예측 결과를 원본 스케일로 역변환하여 저장 완료")
+                except Exception as e:
+                    logger.warning(f"예측 결과 역변환 실패, 정규화된 값으로 저장: {e}")
+                    results['ensemble_forecast'].to_csv(self.results_dir / "forecast_results.csv")
+            else:
+                results['ensemble_forecast'].to_csv(self.results_dir / "forecast_results.csv")
         
         # 8. 평가 결과 CSV 저장
         if 'evaluation_results' in results:
