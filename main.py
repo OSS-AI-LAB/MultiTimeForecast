@@ -7,6 +7,7 @@ Darts TFTModel을 활용한 계정과목별 매출 예측
 import sys
 import os
 import logging
+import pandas as pd
 from pathlib import Path
 sys.path.append('src')
 
@@ -100,9 +101,15 @@ def main():
         if 'ensemble_forecast' in results and not results['ensemble_forecast'].empty:
             print("\n최종 예측값 (12개월 후):")
             final_forecast = results['ensemble_forecast'].iloc[-1]
+            
+            # 예측값을 원본 스케일로 역변환
+            final_forecast_original = data_processor.inverse_scale_features(
+                pd.DataFrame([final_forecast])
+            ).iloc[0]
+            
             for col in target_columns[:5]:  # 상위 5개만 출력
-                if col in final_forecast:
-                    print(f"  {col}: {final_forecast[col]:,.0f}원")
+                if col in final_forecast_original:
+                    print(f"  {col}: {final_forecast_original[col]:,.0f}원")
             if len(target_columns) > 5:
                 print(f"  ... 외 {len(target_columns)-5}개 계정과목")
         
@@ -112,10 +119,20 @@ def main():
             latest_actual = processed_data[target_columns].iloc[-1]
             final_forecast = results['ensemble_forecast'].iloc[-1]
             
+            # 예측값을 원본 스케일로 역변환
+            final_forecast_original = data_processor.inverse_scale_features(
+                pd.DataFrame([final_forecast])
+            ).iloc[0]
+            
+            # 실제값도 원본 스케일로 역변환
+            latest_actual_original = data_processor.inverse_scale_features(
+                pd.DataFrame([latest_actual])
+            ).iloc[0]
+            
             for col in target_columns[:5]:
-                if col in latest_actual and col in final_forecast:
-                    if latest_actual[col] != 0:
-                        growth_rate = ((final_forecast[col] - latest_actual[col]) / abs(latest_actual[col])) * 100
+                if col in latest_actual_original and col in final_forecast_original:
+                    if latest_actual_original[col] != 0:
+                        growth_rate = ((final_forecast_original[col] - latest_actual_original[col]) / abs(latest_actual_original[col])) * 100
                         print(f"  {col}: {growth_rate:+.2f}%")
         
         # 모델 성능 요약

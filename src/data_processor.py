@@ -399,9 +399,12 @@ class TelecomDataProcessor:
         df = df.copy()
         scaling_config = self.config['preprocessing']['scaling']
         
-        # 스케일링 대상 컬럼 선택
-        exclude_cols = scaling_config['exclude_cols']
-        scale_cols = [col for col in df.columns if col not in exclude_cols]
+        # 계정과목 컬럼만 스케일링 (예측 대상 컬럼)
+        scale_cols = self.account_columns if hasattr(self, 'account_columns') else []
+        
+        if not scale_cols:
+            logger.warning("계정과목 컬럼이 없어 스케일링을 건너뜁니다")
+            return df
         
         if scaling_config['method'] == 'robust':
             self.scaler = RobustScaler()
@@ -420,7 +423,7 @@ class TelecomDataProcessor:
             if self.scaler is not None:
                 df[scale_cols] = self.scaler.transform(df[scale_cols])
         
-        logger.info(f"특성 스케일링 완료: {scaling_config['method']}")
+        logger.info(f"특성 스케일링 완료: {scaling_config['method']} (대상: {len(scale_cols)}개 컬럼)")
         return df
     
     def inverse_scale_features(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -428,14 +431,23 @@ class TelecomDataProcessor:
         df = df.copy()
         scaling_config = self.config['preprocessing']['scaling']
         
-        # 스케일링 대상 컬럼 선택
-        exclude_cols = scaling_config['exclude_cols']
-        scale_cols = [col for col in df.columns if col not in exclude_cols]
+        # 계정과목 컬럼만 역변환 (예측 대상 컬럼)
+        scale_cols = self.account_columns if hasattr(self, 'account_columns') else []
+        
+        # 스케일링이 none인 경우 원본 값 그대로 반환
+        if scaling_config['method'] == 'none':
+            logger.info("스케일링이 비활성화되어 있어 원본 값 그대로 반환")
+            return df
         
         if self.scaler is not None and scale_cols:
             try:
-                df[scale_cols] = self.scaler.inverse_transform(df[scale_cols])
-                logger.info("특성 역변환 완료")
+                # DataFrame에서 계정과목 컬럼만 선택하여 역변환
+                available_cols = [col for col in scale_cols if col in df.columns]
+                if available_cols:
+                    df[available_cols] = self.scaler.inverse_transform(df[available_cols])
+                    logger.info(f"특성 역변환 완료: {len(available_cols)}개 컬럼")
+                else:
+                    logger.warning("역변환할 계정과목 컬럼이 없습니다")
             except Exception as e:
                 logger.warning(f"특성 역변환 실패: {e}")
         

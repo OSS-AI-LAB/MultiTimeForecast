@@ -318,16 +318,41 @@ class TelecomVisualizer:
         for i, col in enumerate(target_columns):
             if col in time_series_dict:
                 series = time_series_dict[col]
-                values = series.values
-                # 다변량 시계열인 경우 1차원으로 변환
-                if hasattr(values, 'ndim') and values.ndim > 1:
-                    values = values.flatten()
-                dates = series.time_index
                 
-                # 개선된 계절성 분석
-                if hasattr(values, '__len__') and len(values) >= 12:
+                # TimeSeries 객체에서 데이터 추출
+                try:
+                    # Darts TimeSeries 객체 처리
+                    if hasattr(series, 'values'):
+                        values = series.values()
+                    else:
+                        values = series.values
+                    
+                    # 다변량 시계열인 경우 1차원으로 변환
+                    if hasattr(values, 'ndim') and values.ndim > 1:
+                        values = values.flatten()
+                    
+                    # 시간 인덱스 추출
+                    if hasattr(series, 'time_index'):
+                        dates = series.time_index
+                    elif hasattr(series, 'pd_series'):
+                        dates = series.pd_series().index
+                    else:
+                        # 기본 인덱스 사용
+                        dates = pd.date_range(start='2020-01-01', periods=len(values), freq='MS')
+                    
+                    # 데이터 유효성 검사
+                    if not hasattr(values, '__len__') or len(values) < 12:
+                        logger.warning(f"계절성 분석을 위한 충분한 데이터가 없습니다: {col} (데이터 개수: {len(values) if hasattr(values, '__len__') else 'unknown'})")
+                        continue
+                    
+                    # NaN 값 처리
+                    values = pd.Series(values).fillna(method='ffill').fillna(method='bfill')
+                    if values.isna().all():
+                        logger.warning(f"모든 데이터가 NaN입니다: {col}")
+                        continue
+                    
                     # 트렌드 (12개월 이동평균)
-                    trend = pd.Series(values).rolling(window=12, center=True).mean()
+                    trend = values.rolling(window=12, center=True, min_periods=1).mean()
                     
                     # 계절성 (월별 평균 편차)
                     df = pd.DataFrame({'date': dates, 'value': values})
@@ -344,10 +369,10 @@ class TelecomVisualizer:
                     seasonal_values = pd.Series(seasonal_values, index=dates)
                     
                     # 잔차
-                    residual = pd.Series(values) - trend - seasonal_values
+                    residual = values - trend - seasonal_values
                     
                     # 계절성 강도 계산
-                    seasonal_strength = (seasonal_values.std() / pd.Series(values).std()) * 100
+                    seasonal_strength = (seasonal_values.std() / values.std()) * 100 if values.std() > 0 else 0
                     
                     # 원본 데이터
                     fig.add_trace(
@@ -417,28 +442,71 @@ class TelecomVisualizer:
                         bordercolor='#bdc3c7',
                         borderwidth=1
                     )
+                    
+                    logger.info(f"계절성 분석 완료: {col} (데이터 개수: {len(values)}, 계절성 강도: {seasonal_strength:.1f}%)")
+                    
+                except Exception as e:
+                    logger.error(f"계절성 분석 중 오류 발생 ({col}): {e}")
+                    # 오류 발생 시 빈 차트에 메시지 표시
+                    fig.add_annotation(
+                        x=0.5, y=0.5,
+                        xref=f'x{i+1}', yref=f'y{i+1}',
+                        text=f"데이터 처리 오류<br>{col}",
+                        showarrow=False,
+                        font=dict(size=12, color='red'),
+                        bgcolor='rgba(255,255,255,0.9)',
+                        bordercolor='red',
+                        borderwidth=1
+                    )
+            else:
+                logger.warning(f"time_series_dict에 {col}이 없습니다")
+                # 데이터가 없는 경우 메시지 표시
+                fig.add_annotation(
+                    x=0.5, y=0.5,
+                    xref=f'x{i+1}', yref=f'y{i+1}',
+                    text=f"데이터 없음<br>{col}",
+                    showarrow=False,
+                    font=dict(size=12, color='gray'),
+                    bgcolor='rgba(255,255,255,0.9)',
+                    bordercolor='gray',
+                    borderwidth=1
+                )
         
         # 각 서브플롯의 X축 범위 설정
         for i in range(len(target_columns)):
             if target_columns[i] in time_series_dict:
-                series = time_series_dict[target_columns[i]]
-                dates = series.time_index
-                if hasattr(dates, '__len__') and len(dates) > 0:
-                    try:
+                try:
+                    series = time_series_dict[target_columns[i]]
+                    if hasattr(series, 'time_index'):
+                        dates = series.time_index
+                    elif hasattr(series, 'pd_series'):
+                        dates = series.pd_series().index
+                    else:
+                        continue
+                        
+                    if hasattr(dates, '__len__') and len(dates) > 0:
+                        try:
+                            fig.update_xaxes(
+                                range=[dates.min(), dates.max()],
+                                title_text="날짜",
+                                gridcolor='rgba(128,128,128,0.2)',
+                                row=i+1, col=1
+                            )
+                        except Exception as e:
+                            logger.warning(f"계절성 차트 X축 범위 설정 실패 (차트 {i+1}): {e}")
+                            fig.update_xaxes(
+                                title_text="날짜",
+                                gridcolor='rgba(128,128,128,0.2)',
+                                row=i+1, col=1
+                            )
+                    else:
                         fig.update_xaxes(
-                            range=[dates.min(), dates.max()],
                             title_text="날짜",
                             gridcolor='rgba(128,128,128,0.2)',
                             row=i+1, col=1
                         )
-                    except Exception as e:
-                        logger.warning(f"계절성 차트 X축 범위 설정 실패 (차트 {i+1}): {e}")
-                        fig.update_xaxes(
-                            title_text="날짜",
-                            gridcolor='rgba(128,128,128,0.2)',
-                            row=i+1, col=1
-                        )
-                else:
+                except Exception as e:
+                    logger.warning(f"계절성 차트 X축 설정 실패 (차트 {i+1}): {e}")
                     fig.update_xaxes(
                         title_text="날짜",
                         gridcolor='rgba(128,128,128,0.2)',
