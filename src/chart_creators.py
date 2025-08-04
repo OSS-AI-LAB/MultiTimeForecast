@@ -235,8 +235,9 @@ class ChartCreators:
         fig = make_subplots(
             rows=n_rows, cols=n_cols,
             subplot_titles=[f"<b>{metric}</b>" for metric in metrics],
-            vertical_spacing=0.2,
-            horizontal_spacing=0.15
+            vertical_spacing=0.25,  # 간격 증가
+            horizontal_spacing=0.2,  # 간격 증가
+            specs=[[{"secondary_y": False}, {"secondary_y": False}] for _ in range(n_rows)]
         )
         
         # 현대적인 색상 팔레트
@@ -341,26 +342,37 @@ class ChartCreators:
             showlegend=False
         )
         
-        # 각 서브플롯 스타일링
+        # 각 서브플롯 스타일링 - 서브플롯 겹침 문제 해결
         for i in range(n_metrics):
             row = (i // n_cols) + 1
             col = (i % n_cols) + 1
             
-            fig.update_xaxes(
-                title_text="모델",
-                gridcolor='rgba(128,128,128,0.2)',
-                row=row, col=col
-            )
-            fig.update_yaxes(
-                title_text="평균값",
-                gridcolor='rgba(128,128,128,0.2)',
-                row=row, col=col
-            )
-            
-            # 서브플롯 여백 조정 (텍스트가 잘리지 않도록)
-            fig.update_layout(
-                **{f'xaxis{i+1}': dict(domain=[0.1, 0.9])},
-                **{f'yaxis{i+1}': dict(domain=[0.15, 0.85])}
-            )
+            # 서브플롯별 고유한 축 설정 - 겹침 문제 해결
+            if col == 1:  # 첫 번째 열
+                fig.update_xaxes(
+                    title_text="모델",
+                    gridcolor='rgba(128,128,128,0.2)',
+                    row=row, col=col,
+                    domain=[0.05, 0.45]  # 왼쪽 절반
+                )
+                fig.update_yaxes(
+                    title_text="평균값",
+                    gridcolor='rgba(128,128,128,0.2)',
+                    row=row, col=col,
+                    domain=[0.1, 0.9] if row == 1 else [0.1, 0.9]
+                )
+            else:  # 두 번째 열
+                fig.update_xaxes(
+                    title_text="모델",
+                    gridcolor='rgba(128,128,128,0.2)',
+                    row=row, col=col,
+                    domain=[0.55, 0.95]  # 오른쪽 절반
+                )
+                fig.update_yaxes(
+                    title_text="평균값",
+                    gridcolor='rgba(128,128,128,0.2)',
+                    row=row, col=col,
+                    domain=[0.1, 0.9] if row == 1 else [0.1, 0.9]
+                )
         
         return fig 

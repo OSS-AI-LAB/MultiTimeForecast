@@ -797,15 +797,25 @@ class TelecomVisualizer:
         charts_html = ""
         
         try:
-            # 1. 예측 결과 차트
+            # 1. 예측 결과 차트 - 개별 파일과 동일한 방식으로 생성
             if 'ensemble_forecast' in results and processed_data is not None and target_columns is not None:
-                forecast_fig = self.create_forecast_plot(processed_data, results['ensemble_forecast'], target_columns, data_processor)
-                charts_html += f"""
-                <div class="chart">
-                    <h3>📊 예측 결과</h3>
-                    <div id="forecast-chart">{forecast_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
-                </div>
-                """
+                try:
+                    # 개별 파일과 동일한 방식으로 차트 생성
+                    forecast_fig = self.create_forecast_plot(processed_data, results['ensemble_forecast'], target_columns, data_processor)
+                    charts_html += f"""
+                    <div class="chart">
+                        <h3>📊 예측 결과</h3>
+                        <div id="forecast-chart">{forecast_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
+                    </div>
+                    """
+                except Exception as e:
+                    logger.error(f"대시보드 예측 차트 생성 실패: {e}")
+                    charts_html += """
+                    <div class="chart">
+                        <h3>📊 예측 결과</h3>
+                        <p>차트 생성 중 오류가 발생했습니다. forecast_plot.html을 확인해주세요.</p>
+                    </div>
+                    """
             
             # 2. 모델 성능 비교 차트
             if 'evaluation_results' in results:
