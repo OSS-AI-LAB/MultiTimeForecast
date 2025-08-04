@@ -161,13 +161,25 @@ class ChartCreators:
             margin=dict(l=80, r=80, t=120, b=80)
         )
         
-        # 각 서브플롯 스타일링
+        # 각 서브플롯 스타일링 - X축 범위 개선
         for i in range(len(target_columns)):
-            fig.update_xaxes(
-                title_text="날짜",
-                gridcolor='rgba(128,128,128,0.2)',
-                row=i+1, col=1
-            )
+            # 전체 데이터 범위 계산
+            all_data = pd.concat([actual_display, forecast_display])
+            if not all_data.empty:
+                # X축 범위를 전체 데이터에 맞게 설정
+                fig.update_xaxes(
+                    title_text="날짜",
+                    gridcolor='rgba(128,128,128,0.2)',
+                    range=[all_data.index.min(), all_data.index.max()],
+                    row=i+1, col=1
+                )
+            else:
+                fig.update_xaxes(
+                    title_text="날짜",
+                    gridcolor='rgba(128,128,128,0.2)',
+                    row=i+1, col=1
+                )
+            
             fig.update_yaxes(
                 title_text="금액 (원)",
                 gridcolor='rgba(128,128,128,0.2)',
@@ -257,7 +269,7 @@ class ChartCreators:
                 xref=f'x{i+1}', yref=f'y{i+1}',
                 text=performance_text,
                 showarrow=False,
-                font=dict(size=10, color='#2c3e50'),
+                font=dict(size=9, color='#2c3e50'),
                 bgcolor='rgba(255,255,255,0.8)',
                 bordercolor='#bdc3c7',
                 borderwidth=1
@@ -270,11 +282,11 @@ class ChartCreators:
                 improvement = ((second_best - best_value) / best_value) * 100 if best_value != 0 else 0
                 
                 fig.add_annotation(
-                    x=0.5, y=0.85,
+                    x=0.5, y=0.82,
                     xref=f'x{i+1}', yref=f'y{i+1}',
                     text=f"💡 {best_model}이 {second_best:.2f}보다 {improvement:.1f}% 우수",
                     showarrow=False,
-                    font=dict(size=9, color='#27ae60'),
+                    font=dict(size=8, color='#27ae60'),
                     bgcolor='rgba(39, 174, 96, 0.1)',
                     bordercolor='#27ae60',
                     borderwidth=1
@@ -293,7 +305,7 @@ class ChartCreators:
                     xref=f'x{i+1}', yref=f'y{i+1}',
                     text=f'σ: {std_val:.2f}<br>범위: {min_val:.2f}~{max_val:.2f}',
                     showarrow=False,
-                    font=dict(size=8, color='#7f8c8d'),
+                    font=dict(size=7, color='#7f8c8d'),
                     bgcolor='rgba(255,255,255,0.7)',
                     bordercolor='#ecf0f1',
                     borderwidth=0.5

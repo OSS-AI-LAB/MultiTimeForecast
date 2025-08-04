@@ -573,6 +573,13 @@ class TelecomVisualizer:
                 row=1, col=1
             )
             
+            # X축 범위 설정
+            if not total_data.empty:
+                fig.update_xaxes(
+                    range=[total_data.index.min(), total_data.index.max()],
+                    row=1, col=1
+                )
+            
             # 성장률 계산
             if len(total_data) > 1:
                 growth_rate = ((total_data['total_revenue'].iloc[-1] - total_data['total_revenue'].iloc[0]) / 
@@ -679,6 +686,14 @@ class TelecomVisualizer:
                     row=2, col=2
                 )
                 
+                # X축 범위 설정 - 전체 데이터 범위로
+                all_dates = pd.concat([actual_data.index, forecast_data.index])
+                if not all_dates.empty:
+                    fig.update_xaxes(
+                        range=[all_dates.min(), all_dates.max()],
+                        row=2, col=2
+                    )
+                
                 # 예측 정확도 계산
                 if len(actual_data) > 0 and len(forecast_data) > 0:
                     actual_last = actual_data.iloc[-1, 0]
@@ -732,27 +747,15 @@ class TelecomVisualizer:
         <head>
             <title>통신사 재무 예측 대시보드</title>
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
             <style>
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
-                
+                * { margin: 0; padding: 0; box-sizing: border-box; }
                 body { 
-                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+                    font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     min-height: 100vh;
                     color: #2c3e50;
                 }
-                
-                .container { 
-                    max-width: 1400px; 
-                    margin: 0 auto; 
-                    padding: 20px;
-                }
-                
+                .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
                 .header { 
                     text-align: center; 
                     margin-bottom: 40px;
@@ -760,9 +763,7 @@ class TelecomVisualizer:
                     padding: 30px;
                     border-radius: 20px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-                    backdrop-filter: blur(10px);
                 }
-                
                 .header h1 {
                     font-size: 2.5rem;
                     font-weight: 700;
@@ -771,36 +772,21 @@ class TelecomVisualizer:
                     -webkit-text-fill-color: transparent;
                     margin-bottom: 10px;
                 }
-                
-                .header p {
-                    font-size: 1.1rem;
-                    color: #7f8c8d;
-                    font-weight: 500;
-                }
-                
+                .header p { font-size: 1.1rem; color: #7f8c8d; font-weight: 500; }
                 .summary { 
                     background: rgba(255, 255, 255, 0.95);
                     padding: 30px; 
                     border-radius: 20px; 
                     margin-bottom: 30px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-                    backdrop-filter: blur(10px);
                 }
-                
-                .summary h2 {
-                    font-size: 1.8rem;
-                    font-weight: 600;
-                    margin-bottom: 20px;
-                    color: #2c3e50;
-                }
-                
+                .summary h2 { font-size: 1.8rem; font-weight: 600; margin-bottom: 20px; color: #2c3e50; }
                 .summary-grid {
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                     gap: 20px;
                     margin-top: 20px;
                 }
-                
                 .summary-item {
                     background: linear-gradient(135deg, #667eea, #764ba2);
                     color: white;
@@ -808,47 +794,20 @@ class TelecomVisualizer:
                     border-radius: 15px;
                     text-align: center;
                 }
-                
-                .summary-item h3 {
-                    font-size: 2rem;
-                    font-weight: 700;
-                    margin-bottom: 5px;
-                }
-                
-                .summary-item p {
-                    font-size: 0.9rem;
-                    opacity: 0.9;
-                }
-                
+                .summary-item h3 { font-size: 2rem; font-weight: 700; margin-bottom: 5px; }
+                .summary-item p { font-size: 0.9rem; opacity: 0.9; }
                 .chart { 
                     margin-bottom: 30px;
                     background: rgba(255, 255, 255, 0.95);
                     padding: 30px;
                     border-radius: 20px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-                    backdrop-filter: blur(10px);
                 }
-                
-                .chart h3 {
-                    font-size: 1.5rem;
-                    font-weight: 600;
-                    margin-bottom: 20px;
-                    color: #2c3e50;
-                    text-align: center;
-                }
-                
+                .chart h3 { font-size: 1.5rem; font-weight: 600; margin-bottom: 20px; color: #2c3e50; text-align: center; }
                 @media (max-width: 768px) {
-                    .container {
-                        padding: 10px;
-                    }
-                    
-                    .header h1 {
-                        font-size: 2rem;
-                    }
-                    
-                    .summary-grid {
-                        grid-template-columns: 1fr;
-                    }
+                    .container { padding: 10px; }
+                    .header h1 { font-size: 2rem; }
+                    .summary-grid { grid-template-columns: 1fr; }
                 }
             </style>
         </head>
