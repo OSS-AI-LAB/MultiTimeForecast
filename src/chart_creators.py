@@ -206,7 +206,7 @@ class ChartCreators:
     
     @staticmethod
     def create_accuracy_plot(evaluation_results: dict) -> go.Figure:
-        """모델 정확도 비교 시각화 - 직관적이고 실용적인 디자인"""
+        """모델 정확도 비교 시각화 - 완전히 리뉴얼된 깔끔한 디자인"""
         # 평가 결과를 데이터프레임으로 변환
         accuracy_data = []
         
@@ -226,27 +226,23 @@ class ChartCreators:
         
         df_accuracy = pd.DataFrame(accuracy_data)
         
-        # 메트릭별로 서브플롯 생성 (2열 레이아웃)
+        # 메트릭별로 서브플롯 생성 (단일 열 레이아웃으로 변경)
         metrics = df_accuracy['Metric'].unique()
         n_metrics = len(metrics)
-        n_cols = 2
-        n_rows = (n_metrics + 1) // 2
         
+        # 서브플롯 간격을 더 넓게 설정
         fig = make_subplots(
-            rows=n_rows, cols=n_cols,
-            subplot_titles=[f"<b>{metric}</b>" for metric in metrics],
-            vertical_spacing=0.25,  # 간격 증가
-            horizontal_spacing=0.2,  # 간격 증가
-            specs=[[{"secondary_y": False}, {"secondary_y": False}] for _ in range(n_rows)]
+            rows=n_metrics, cols=1,
+            subplot_titles=[f"<b>{metric} - 모델 성능 비교</b>" for metric in metrics],
+            vertical_spacing=0.15,  # 간격 증가
+            specs=[[{"secondary_y": False}] for _ in range(n_metrics)]
         )
         
         # 현대적인 색상 팔레트
-        colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6']
+        colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#34495e']
         
         for i, metric in enumerate(metrics):
             metric_data = df_accuracy[df_accuracy['Metric'] == metric]
-            row = (i // n_cols) + 1
-            col = (i % n_cols) + 1
             
             # 모델별 평균값 계산
             model_means = metric_data.groupby('Model')['Value'].mean().sort_values()
@@ -258,11 +254,11 @@ class ChartCreators:
             if is_lower_better:
                 best_model = models[0]  # 가장 낮은 값
                 worst_model = models[-1]  # 가장 높은 값
-                performance_text = f"<b>🏆 최고: {best_model}</b><br>❌ 최악: {worst_model}"
+                performance_text = f"🏆 최고: {best_model}<br>❌ 최악: {worst_model}"
             else:
                 best_model = models[-1]  # 가장 높은 값
                 worst_model = models[0]  # 가장 낮은 값
-                performance_text = f"<b>🏆 최고: {best_model}</b><br>❌ 최악: {worst_model}"
+                performance_text = f"🏆 최고: {best_model}<br>❌ 최악: {worst_model}"
             
             # 바 차트로 모델 성능 비교
             fig.add_trace(
@@ -271,56 +267,59 @@ class ChartCreators:
                     y=means,
                     name=metric,
                     marker_color=[colors[j % len(colors)] for j in range(len(models))],
-                    text=[f'{val:.2f}' for val in means],
-                    textposition='auto',
-                    hovertemplate='<b>%{x}</b><br>평균 %{y:.2f}<br>순위: %{customdata}<extra></extra>',
+                    text=[f'{val:.3f}' for val in means],
+                    textposition='outside',
+                    textfont=dict(size=11, color='#2c3e50'),
+                    hovertemplate='<b>%{x}</b><br>평균값: %{y:.3f}<br>순위: %{customdata}<extra></extra>',
                     customdata=[f"{j+1}위" for j in range(len(models))],
                     showlegend=False
                 ),
-                row=row, col=col
+                row=i+1, col=1
             )
             
             # 성능 순위 텍스트 추가 (좌상단)
             fig.add_annotation(
-                x=0.02, y=0.92,
-                xref=f'x{row}{col}', yref=f'y{row}{col}',
+                x=0.02, y=0.95,
+                xref=f'x{i+1}', yref=f'y{i+1}',
                 text=performance_text,
                 showarrow=False,
-                font=dict(size=10, color='#2c3e50'),
+                font=dict(size=11, color='#2c3e50'),
                 bgcolor='rgba(255,255,255,0.95)',
                 bordercolor='#3498db',
                 borderwidth=1
             )
             
-            # 성능 차이 근거 추가 (우상단)
+            # 성능 차이 정보 추가 (우상단)
             if len(means) >= 2:
-                best_value = means[0]
-                second_best = means[1]
+                best_value = means[0] if is_lower_better else means[-1]
+                second_best = means[1] if is_lower_better else means[-2]
                 improvement = ((second_best - best_value) / best_value) * 100 if best_value != 0 else 0
                 
+                improvement_text = f"💡 {best_model}<br>{abs(improvement):.1f}% 우수"
+                
                 fig.add_annotation(
-                    x=0.98, y=0.92,
-                    xref=f'x{row}{col}', yref=f'y{row}{col}',
-                    text=f"💡 {best_model}<br>{improvement:.1f}% 우수",
+                    x=0.98, y=0.95,
+                    xref=f'x{i+1}', yref=f'y{i+1}',
+                    text=improvement_text,
                     showarrow=False,
-                    font=dict(size=9, color='#27ae60'),
+                    font=dict(size=10, color='#27ae60'),
                     bgcolor='rgba(39, 174, 96, 0.15)',
                     bordercolor='#27ae60',
                     borderwidth=1
                 )
             
-            # 모델별 상세 통계 추가 (바 위에 간단하게)
+            # 모델별 표준편차 정보 추가 (바 위에)
             for j, model in enumerate(models):
                 model_data = metric_data[metric_data['Model'] == model]
                 std_val = model_data['Value'].std()
                 
-                # 통계 정보를 바 위에 간단하게 표시 (표준편차만)
+                # 표준편차 정보를 바 위에 표시
                 fig.add_annotation(
-                    x=j, y=means[j] + max(means) * 0.08,
-                    xref=f'x{row}{col}', yref=f'y{row}{col}',
-                    text=f'σ: {std_val:.2f}',
+                    x=j, y=means[j] + max(means) * 0.05,
+                    xref=f'x{i+1}', yref=f'y{i+1}',
+                    text=f'σ: {std_val:.3f}',
                     showarrow=False,
-                    font=dict(size=7, color='#7f8c8d'),
+                    font=dict(size=9, color='#7f8c8d'),
                     bgcolor='rgba(255,255,255,0.8)',
                     bordercolor='#ecf0f1',
                     borderwidth=0.5
@@ -329,34 +328,30 @@ class ChartCreators:
         # 레이아웃 업데이트
         fig.update_layout(
             title=dict(
-                text="<b>🎯 모델 성능 비교</b><br><sub>각 지표별 모델 순위와 성능 차이</sub>",
+                text="<b>🎯 모델 성능 비교 분석</b><br><sub>각 지표별 모델 순위와 성능 차이</sub>",
                 x=0.5,
-                font=dict(size=18, color='#2c3e50')
+                font=dict(size=20, color='#2c3e50')
             ),
-            height=350 * n_rows,  # 적절한 높이로 조정
+            height=300 * n_metrics,  # 각 차트당 충분한 높이
             template="plotly_white",
-            font=dict(family="Arial, sans-serif", size=10),
+            font=dict(family="Arial, sans-serif", size=12),
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=60, r=60, t=100, b=60),
+            margin=dict(l=80, r=80, t=120, b=80),
             showlegend=False
         )
         
-        # 각 서브플롯 스타일링 - 서브플롯 겹침 문제 해결
+        # 각 서브플롯 스타일링
         for i in range(n_metrics):
-            row = (i // n_cols) + 1
-            col = (i % n_cols) + 1
-            
-            # 서브플롯별 고유한 축 설정 - 겹침 문제 해결
             fig.update_xaxes(
                 title_text="모델",
                 gridcolor='rgba(128,128,128,0.2)',
-                row=row, col=col
+                row=i+1, col=1
             )
             fig.update_yaxes(
                 title_text="평균값",
                 gridcolor='rgba(128,128,128,0.2)',
-                row=row, col=col
+                row=i+1, col=1
             )
         
         return fig 

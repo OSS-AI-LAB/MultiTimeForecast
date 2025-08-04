@@ -48,6 +48,9 @@ preprocessing:
 
 # 모델 설정
 model:
+  # 모델 선택 전략
+  strategy: "ensemble"  # "tft_only", "ensemble", "multi_model", "auto_select"
+  
   # Darts TFT 모델 설정 (최신 버전 파라미터)
   tft:
     # 필수 파라미터 (29개 데이터포인트에 맞게 조정)
@@ -81,11 +84,59 @@ model:
     daily_seasonality: false
     seasonality_mode: 'multiplicative'
     
+  # LSTM 모델 설정
+  lstm:
+    input_chunk_length: 6
+    hidden_dim: 64
+    n_rnn_layers: 2
+    dropout: 0.1
+    n_epochs: 50
+    batch_size: 32
+    optimizer_kwargs:
+      lr: 0.001
+    random_state: 42
+    
+  # GRU 모델 설정
+  gru:
+    input_chunk_length: 6
+    d_model: 64
+    n_rnn_layers: 2
+    dropout: 0.1
+    n_epochs: 50
+    batch_size: 32
+    optimizer_kwargs:
+      lr: 0.001
+    random_state: 42
+    
+  # Transformer 모델 설정
+  transformer:
+    input_chunk_length: 6
+    output_chunk_length: 3
+    d_model: 64
+    nhead: 8
+    num_encoder_layers: 4
+    num_decoder_layers: 4
+    dim_feedforward: 256
+    dropout: 0.1
+    activation: 'relu'
+    n_epochs: 50
+    batch_size: 32
+    optimizer_kwargs:
+      lr: 0.001
+    random_state: 42
+    
   # 앙상블 설정
   use_ensemble: true  # true: TFT + Prophet 앙상블, false: TFT만 사용
   ensemble:
     methods: ["tft", "prophet"]
     weights: [0.7, 0.3]
+    
+  # 다중 모델 앙상블 설정
+  multi_model_ensemble:
+    enabled: false  # true로 설정하면 모든 모델 사용
+    models: ["tft", "prophet", "lstm", "gru", "transformer"]
+    weights: [0.4, 0.2, 0.15, 0.15, 0.1]  # TFT, Prophet, LSTM, GRU, Transformer
+    selection_criteria: "performance"  # "performance", "equal", "custom"
 
 # 예측 설정
 forecasting:
@@ -111,7 +162,7 @@ visualization:
     forecast_plot: true
     accuracy_plot: true
     feature_importance: true
-    correlation_matrix: true
+
     seasonal_decomposition: true
     
   # 대시보드 설정

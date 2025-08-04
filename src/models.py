@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Union
 from darts import TimeSeries
-from darts.models import TFTModel, Prophet
+from darts.models import TFTModel, Prophet, RNNModel, TransformerModel
 from darts.metrics import mae, mape, rmse, smape
 from darts.utils.statistics import check_seasonality
 from sklearn.preprocessing import RobustScaler
@@ -46,10 +46,10 @@ class TelecomForecaster:
                 series_data = df[col].values
                 dates = df.index
                 
-                # TimeSeries 객체 생성
+                # TimeSeries 객체 생성 (float32로 변환하여 MPS 호환성 확보)
                 ts = TimeSeries(
                     times=dates,
-                    values=series_data,
+                    values=series_data.astype(np.float32),
                     freq='MS'
                 )
                 
@@ -107,7 +107,8 @@ class TelecomForecaster:
                 "accelerator": "auto",
                 "devices": "auto",
                 "enable_progress_bar": True,
-                "enable_model_summary": False
+                "enable_model_summary": False,
+                "precision": "32-true"  # float32 사용으로 MPS 호환성 확보
             },
             
             # 기타 설정
@@ -131,6 +132,105 @@ class TelecomForecaster:
         )
         
         logger.info("Prophet 모델 생성 완료")
+        return model
+    
+    def create_lstm_model(self, target_columns: List[str], data_length: int = 29) -> RNNModel:
+        """LSTM 모델 생성"""
+        # 데이터 길이에 따라 chunk length 동적 조정
+        max_input_chunk = min(6, data_length // 3)
+        
+        input_chunk_length = max(2, max_input_chunk)
+        
+        model = RNNModel(
+            model='LSTM',
+            input_chunk_length=input_chunk_length,
+            hidden_dim=64,
+            n_rnn_layers=2,
+            dropout=0.1,
+            n_epochs=50,
+            batch_size=32,
+            optimizer_kwargs={'lr': 0.001},
+            random_state=42,
+            pl_trainer_kwargs={
+                "accelerator": "auto",
+                "devices": "auto",
+                "enable_progress_bar": True,
+                "enable_model_summary": False,
+                "precision": "32-true"  # float32 사용으로 MPS 호환성 확보
+            },
+            force_reset=True,
+            save_checkpoints=False
+        )
+        
+        logger.info("LSTM 모델 생성 완료")
+        return model
+    
+    def create_gru_model(self, target_columns: List[str], data_length: int = 29) -> RNNModel:
+        """GRU 모델 생성"""
+        # 데이터 길이에 따라 chunk length 동적 조정
+        max_input_chunk = min(6, data_length // 3)
+        
+        input_chunk_length = max(2, max_input_chunk)
+        
+        model = RNNModel(
+            model='GRU',
+            input_chunk_length=input_chunk_length,
+            hidden_dim=64,  # d_model -> hidden_dim으로 수정
+            n_rnn_layers=2,
+            dropout=0.1,
+            n_epochs=50,
+            batch_size=32,
+            optimizer_kwargs={'lr': 0.001},
+            random_state=42,
+            pl_trainer_kwargs={
+                "accelerator": "auto",
+                "devices": "auto",
+                "enable_progress_bar": True,
+                "enable_model_summary": False,
+                "precision": "32-true"  # float32 사용으로 MPS 호환성 확보
+            },
+            force_reset=True,
+            save_checkpoints=False
+        )
+        
+        logger.info("GRU 모델 생성 완료")
+        return model
+    
+    def create_transformer_model(self, target_columns: List[str], data_length: int = 29) -> TransformerModel:
+        """Transformer 모델 생성"""
+        # 데이터 길이에 따라 chunk length 동적 조정
+        max_input_chunk = min(6, data_length // 3)
+        max_output_chunk = min(3, data_length // 6)
+        
+        input_chunk_length = max(2, max_input_chunk)
+        output_chunk_length = max(1, max_output_chunk)
+        
+        model = TransformerModel(
+            input_chunk_length=input_chunk_length,
+            output_chunk_length=output_chunk_length,
+            d_model=64,
+            nhead=8,
+            num_encoder_layers=4,
+            num_decoder_layers=4,
+            dim_feedforward=256,
+            dropout=0.1,
+            activation='relu',
+            n_epochs=50,
+            batch_size=32,
+            optimizer_kwargs={'lr': 0.001},
+            random_state=42,
+            pl_trainer_kwargs={
+                "accelerator": "auto",
+                "devices": "auto",
+                "enable_progress_bar": True,
+                "enable_model_summary": False,
+                "precision": "32-true"  # float32 사용으로 MPS 호환성 확보
+            },
+            force_reset=True,
+            save_checkpoints=False
+        )
+        
+        logger.info("Transformer 모델 생성 완료")
         return model
     
     def train_models(self, time_series_dict: Dict[str, TimeSeries], 
@@ -170,6 +270,39 @@ class TelecomForecaster:
             models['multivariate_series'] = multivariate_series
             logger.info("TFT 모델 훈련 완료")
         
+        # LSTM 모델 훈련 (단변량)
+        logger.info("LSTM 모델 훈련 시작...")
+        lstm_models = {}
+        for col in target_columns:
+            if col in time_series_dict:
+                lstm_model = self.create_lstm_model(target_columns, data_length)
+                lstm_model.fit(time_series_dict[col])
+                lstm_models[col] = lstm_model
+        models['lstm'] = lstm_models
+        logger.info("LSTM 모델 훈련 완료")
+        
+        # GRU 모델 훈련 (단변량)
+        logger.info("GRU 모델 훈련 시작...")
+        gru_models = {}
+        for col in target_columns:
+            if col in time_series_dict:
+                gru_model = self.create_gru_model(target_columns, data_length)
+                gru_model.fit(time_series_dict[col])
+                gru_models[col] = gru_model
+        models['gru'] = gru_models
+        logger.info("GRU 모델 훈련 완료")
+        
+        # Transformer 모델 훈련 (단변량)
+        logger.info("Transformer 모델 훈련 시작...")
+        transformer_models = {}
+        for col in target_columns:
+            if col in time_series_dict:
+                transformer_model = self.create_transformer_model(target_columns, data_length)
+                transformer_model.fit(time_series_dict[col])
+                transformer_models[col] = transformer_model
+        models['transformer'] = transformer_models
+        logger.info("Transformer 모델 훈련 완료")
+        
         # 앙상블 사용 여부에 따라 Prophet 모델 훈련
         use_ensemble = self.config['model']['use_ensemble']
         if use_ensemble:
@@ -185,7 +318,7 @@ class TelecomForecaster:
             models['prophet'] = prophet_models
             logger.info("Prophet 모델 훈련 완료")
         else:
-            logger.info("앙상블 비활성화: TFT 모델만 사용")
+            logger.info("앙상블 비활성화: Prophet 모델 제외")
         
         return models
     
@@ -205,6 +338,51 @@ class TelecomForecaster:
             tft_forecast = tft_model.predict(n=forecast_horizon)
             predictions['tft'] = tft_forecast.to_dataframe()
             logger.info("TFT 모델 예측 완료")
+        
+        # LSTM 모델 예측
+        if 'lstm' in models:
+            logger.info("LSTM 모델 예측 시작...")
+            lstm_models = models['lstm']
+            lstm_predictions = {}
+            
+            for col in target_columns:
+                if col in lstm_models and col in time_series_dict:
+                    lstm_model = lstm_models[col]
+                    lstm_forecast = lstm_model.predict(n=forecast_horizon)
+                    lstm_predictions[col] = lstm_forecast.to_dataframe()
+            
+            predictions['lstm'] = lstm_predictions
+            logger.info("LSTM 모델 예측 완료")
+        
+        # GRU 모델 예측
+        if 'gru' in models:
+            logger.info("GRU 모델 예측 시작...")
+            gru_models = models['gru']
+            gru_predictions = {}
+            
+            for col in target_columns:
+                if col in gru_models and col in time_series_dict:
+                    gru_model = gru_models[col]
+                    gru_forecast = gru_model.predict(n=forecast_horizon)
+                    gru_predictions[col] = gru_forecast.to_dataframe()
+            
+            predictions['gru'] = gru_predictions
+            logger.info("GRU 모델 예측 완료")
+        
+        # Transformer 모델 예측
+        if 'transformer' in models:
+            logger.info("Transformer 모델 예측 시작...")
+            transformer_models = models['transformer']
+            transformer_predictions = {}
+            
+            for col in target_columns:
+                if col in transformer_models and col in time_series_dict:
+                    transformer_model = transformer_models[col]
+                    transformer_forecast = transformer_model.predict(n=forecast_horizon)
+                    transformer_predictions[col] = transformer_forecast.to_dataframe()
+            
+            predictions['transformer'] = transformer_predictions
+            logger.info("Transformer 모델 예측 완료")
         
         # 앙상블 사용 여부에 따라 Prophet 모델 예측
         use_ensemble = self.config['model']['use_ensemble']
@@ -226,7 +404,36 @@ class TelecomForecaster:
     
     def ensemble_predictions(self, predictions: Dict[str, pd.DataFrame],
                            target_columns: List[str]) -> pd.DataFrame:
-        """앙상블 예측"""
+        """향상된 앙상블 예측 - 다중 모델 지원"""
+        strategy = self.get_model_strategy()
+        
+        if strategy == "tft_only":
+            # TFT만 사용
+            tft_pred = predictions.get('tft', pd.DataFrame())
+            logger.info("TFT 전용 모드: TFT 예측 결과만 사용")
+            return tft_pred
+        
+        elif strategy == "ensemble":
+            # 기존 TFT + Prophet 앙상블
+            return self._traditional_ensemble(predictions, target_columns)
+        
+        elif strategy == "multi_model":
+            # 다중 모델 앙상블
+            return self._multi_model_ensemble(predictions, target_columns)
+        
+        elif strategy == "auto_select":
+            # 성능 기반 자동 선택 (평가 결과 필요)
+            return self._auto_select_ensemble(predictions, target_columns)
+        
+        else:
+            # 기본값: TFT만 사용
+            tft_pred = predictions.get('tft', pd.DataFrame())
+            logger.info(f"알 수 없는 전략 '{strategy}': TFT 예측 결과만 사용")
+            return tft_pred
+    
+    def _traditional_ensemble(self, predictions: Dict[str, pd.DataFrame],
+                            target_columns: List[str]) -> pd.DataFrame:
+        """기존 TFT + Prophet 앙상블"""
         use_ensemble = self.config['model']['use_ensemble']
         
         # TFT 예측 결과
@@ -271,7 +478,7 @@ class TelecomForecaster:
                         weights[1] * prophet_pred[col]
                     )
             
-            logger.info("앙상블 예측 완료")
+            logger.info("TFT + Prophet 앙상블 예측 완료")
             return ensemble_result
         
         # 하나의 모델만 있는 경우
@@ -281,6 +488,81 @@ class TelecomForecaster:
             return prophet_pred
         else:
             return pd.DataFrame()
+    
+    def _multi_model_ensemble(self, predictions: Dict[str, pd.DataFrame],
+                            target_columns: List[str]) -> pd.DataFrame:
+        """다중 모델 앙상블"""
+        if not self.should_use_multi_model_ensemble():
+            logger.info("다중 모델 앙상블 비활성화: TFT 예측 결과만 사용")
+            return predictions.get('tft', pd.DataFrame())
+        
+        ensemble_config = self.config['model']['multi_model_ensemble']
+        models = ensemble_config['models']
+        weights = ensemble_config['weights']
+        
+        # 모든 모델의 예측 결과 수집
+        model_predictions = {}
+        for model_name in models:
+            if model_name in predictions:
+                if model_name in ['lstm', 'gru', 'transformer']:
+                    # 단변량 모델들의 결과 통합
+                    model_pred = self._combine_univariate_predictions(
+                        predictions[model_name], target_columns
+                    )
+                else:
+                    # 다변량 모델 (TFT, Prophet)
+                    model_pred = predictions[model_name]
+                
+                if not model_pred.empty:
+                    model_predictions[model_name] = model_pred
+        
+        if not model_predictions:
+            logger.warning("사용 가능한 모델 예측 결과가 없음")
+            return pd.DataFrame()
+        
+        # 앙상블 계산
+        ensemble_result = pd.DataFrame()
+        for i, model_name in enumerate(models):
+            if model_name in model_predictions:
+                model_pred = model_predictions[model_name]
+                weight = weights[i] if i < len(weights) else 1.0 / len(models)
+                
+                if ensemble_result.empty:
+                    ensemble_result = weight * model_pred
+                else:
+                    # 컬럼명 맞추기
+                    common_cols = list(set(ensemble_result.columns) & set(model_pred.columns))
+                    for col in common_cols:
+                        ensemble_result[col] += weight * model_pred[col]
+        
+        logger.info(f"다중 모델 앙상블 완료: {list(model_predictions.keys())}")
+        return ensemble_result
+    
+    def _combine_univariate_predictions(self, predictions: Dict[str, pd.DataFrame],
+                                      target_columns: List[str]) -> pd.DataFrame:
+        """단변량 모델들의 예측 결과 통합"""
+        combined_data = []
+        
+        for col in target_columns:
+            if col in predictions:
+                col_data = predictions[col]
+                if isinstance(col_data, pd.DataFrame):
+                    # DataFrame인 경우 첫 번째 컬럼 사용
+                    combined_data.append(col_data.iloc[:, 0].rename(col))
+                else:
+                    combined_data.append(col_data)
+        
+        if combined_data:
+            return pd.concat(combined_data, axis=1)
+        else:
+            return pd.DataFrame()
+    
+    def _auto_select_ensemble(self, predictions: Dict[str, pd.DataFrame],
+                            target_columns: List[str]) -> pd.DataFrame:
+        """성능 기반 자동 선택 앙상블"""
+        # 평가 결과가 필요하므로 기본적으로 TFT 사용
+        logger.info("자동 선택 모드: TFT 예측 결과 사용")
+        return predictions.get('tft', pd.DataFrame())
     
     def safe_metric_calculation(self, actual: np.ndarray, predicted: np.ndarray, metric_name: str) -> float:
         """안전한 메트릭 계산 (오류 처리 포함)"""
@@ -458,8 +740,230 @@ class TelecomForecaster:
                 logger.error(f"Prophet 모델 평가 전체 실패: {e}")
                 evaluation_results['prophet'] = {}
         
+        # LSTM 모델 평가
+        if 'lstm' in models:
+            logger.info("LSTM 모델 평가 시작...")
+            try:
+                lstm_models = models['lstm']
+                lstm_metrics = {}
+                
+                for col in target_columns:
+                    if col in lstm_models and col in time_series_dict:
+                        try:
+                            lstm_model = lstm_models[col]
+                            series = time_series_dict[col]
+                            
+                            # 시계열 길이 확인
+                            if len(series) <= test_size:
+                                logger.warning(f"시계열이 너무 짧아 평가 불가 (컬럼: {col}): {len(series)} <= {test_size}")
+                                continue
+                            
+                            # 훈련/테스트 분할
+                            train_series = series[:-test_size]
+                            test_series = series[-test_size:]
+                            
+                            # 예측
+                            forecast = lstm_model.predict(n=test_size)
+                            
+                            # 평가 지표 계산
+                            actual_values = test_series.values()
+                            predicted_values = forecast.values()
+                            
+                            # 다변량 시계열인 경우 1차원으로 변환
+                            if actual_values.ndim > 1:
+                                actual_values = actual_values.flatten()
+                            if predicted_values.ndim > 1:
+                                predicted_values = predicted_values.flatten()
+                            
+                            col_metrics = {}
+                            for metric_name in ['mae', 'mape', 'rmse', 'smape']:
+                                col_metrics[metric_name] = self.safe_metric_calculation(
+                                    actual_values, predicted_values, metric_name
+                                )
+                            
+                            lstm_metrics[col] = col_metrics
+                            
+                        except Exception as e:
+                            logger.warning(f"LSTM 평가 실패 (컬럼: {col}): {e}")
+                            lstm_metrics[col] = {
+                                'mae': np.nan, 'mape': np.nan, 'rmse': np.nan, 'smape': np.nan
+                            }
+                
+                evaluation_results['lstm'] = lstm_metrics
+                logger.info("LSTM 모델 평가 완료")
+                
+            except Exception as e:
+                logger.error(f"LSTM 모델 평가 전체 실패: {e}")
+                evaluation_results['lstm'] = {}
+        
+        # GRU 모델 평가
+        if 'gru' in models:
+            logger.info("GRU 모델 평가 시작...")
+            try:
+                gru_models = models['gru']
+                gru_metrics = {}
+                
+                for col in target_columns:
+                    if col in gru_models and col in time_series_dict:
+                        try:
+                            gru_model = gru_models[col]
+                            series = time_series_dict[col]
+                            
+                            # 시계열 길이 확인
+                            if len(series) <= test_size:
+                                logger.warning(f"시계열이 너무 짧아 평가 불가 (컬럼: {col}): {len(series)} <= {test_size}")
+                                continue
+                            
+                            # 훈련/테스트 분할
+                            train_series = series[:-test_size]
+                            test_series = series[-test_size:]
+                            
+                            # 예측
+                            forecast = gru_model.predict(n=test_size)
+                            
+                            # 평가 지표 계산
+                            actual_values = test_series.values()
+                            predicted_values = forecast.values()
+                            
+                            # 다변량 시계열인 경우 1차원으로 변환
+                            if actual_values.ndim > 1:
+                                actual_values = actual_values.flatten()
+                            if predicted_values.ndim > 1:
+                                predicted_values = predicted_values.flatten()
+                            
+                            col_metrics = {}
+                            for metric_name in ['mae', 'mape', 'rmse', 'smape']:
+                                col_metrics[metric_name] = self.safe_metric_calculation(
+                                    actual_values, predicted_values, metric_name
+                                )
+                            
+                            gru_metrics[col] = col_metrics
+                            
+                        except Exception as e:
+                            logger.warning(f"GRU 평가 실패 (컬럼: {col}): {e}")
+                            gru_metrics[col] = {
+                                'mae': np.nan, 'mape': np.nan, 'rmse': np.nan, 'smape': np.nan
+                            }
+                
+                evaluation_results['gru'] = gru_metrics
+                logger.info("GRU 모델 평가 완료")
+                
+            except Exception as e:
+                logger.error(f"GRU 모델 평가 전체 실패: {e}")
+                evaluation_results['gru'] = {}
+        
+        # Transformer 모델 평가
+        if 'transformer' in models:
+            logger.info("Transformer 모델 평가 시작...")
+            try:
+                transformer_models = models['transformer']
+                transformer_metrics = {}
+                
+                for col in target_columns:
+                    if col in transformer_models and col in time_series_dict:
+                        try:
+                            transformer_model = transformer_models[col]
+                            series = time_series_dict[col]
+                            
+                            # 시계열 길이 확인
+                            if len(series) <= test_size:
+                                logger.warning(f"시계열이 너무 짧아 평가 불가 (컬럼: {col}): {len(series)} <= {test_size}")
+                                continue
+                            
+                            # 훈련/테스트 분할
+                            train_series = series[:-test_size]
+                            test_series = series[-test_size:]
+                            
+                            # 예측
+                            forecast = transformer_model.predict(n=test_size)
+                            
+                            # 평가 지표 계산
+                            actual_values = test_series.values()
+                            predicted_values = forecast.values()
+                            
+                            # 다변량 시계열인 경우 1차원으로 변환
+                            if actual_values.ndim > 1:
+                                actual_values = actual_values.flatten()
+                            if predicted_values.ndim > 1:
+                                predicted_values = predicted_values.flatten()
+                            
+                            col_metrics = {}
+                            for metric_name in ['mae', 'mape', 'rmse', 'smape']:
+                                col_metrics[metric_name] = self.safe_metric_calculation(
+                                    actual_values, predicted_values, metric_name
+                                )
+                            
+                            transformer_metrics[col] = col_metrics
+                            
+                        except Exception as e:
+                            logger.warning(f"Transformer 평가 실패 (컬럼: {col}): {e}")
+                            transformer_metrics[col] = {
+                                'mae': np.nan, 'mape': np.nan, 'rmse': np.nan, 'smape': np.nan
+                            }
+                
+                evaluation_results['transformer'] = transformer_metrics
+                logger.info("Transformer 모델 평가 완료")
+                
+            except Exception as e:
+                logger.error(f"Transformer 모델 평가 전체 실패: {e}")
+                evaluation_results['transformer'] = {}
+        
         return evaluation_results
     
+    def get_model_strategy(self) -> str:
+        """현재 모델 전략 반환"""
+        return self.config['model'].get('strategy', 'ensemble')
+    
+    def should_use_multi_model_ensemble(self) -> bool:
+        """다중 모델 앙상블 사용 여부 확인"""
+        return self.config['model'].get('multi_model_ensemble', {}).get('enabled', False)
+    
+    def get_ensemble_models(self) -> List[str]:
+        """앙상블에 사용할 모델 목록 반환"""
+        if self.should_use_multi_model_ensemble():
+            return self.config['model']['multi_model_ensemble']['models']
+        else:
+            return self.config['model']['ensemble']['methods']
+    
+    def get_ensemble_weights(self) -> List[float]:
+        """앙상블 가중치 반환"""
+        if self.should_use_multi_model_ensemble():
+            return self.config['model']['multi_model_ensemble']['weights']
+        else:
+            return self.config['model']['ensemble']['weights']
+    
+    def select_best_models(self, evaluation_results: Dict[str, Dict[str, Dict[str, float]]], 
+                          target_columns: List[str], top_k: int = 3) -> List[str]:
+        """성능 기반으로 최고 모델 선택"""
+        if not evaluation_results:
+            return ['tft']  # 기본값
+        
+        # 각 모델의 평균 성능 계산
+        model_scores = {}
+        for model_name, model_results in evaluation_results.items():
+            if not model_results:
+                continue
+                
+            total_mape = 0
+            count = 0
+            
+            for col, metrics in model_results.items():
+                if 'mape' in metrics and not np.isnan(metrics['mape']):
+                    total_mape += metrics['mape']
+                    count += 1
+            
+            if count > 0:
+                model_scores[model_name] = total_mape / count
+        
+        # MAPE가 낮을수록 좋으므로 정렬
+        sorted_models = sorted(model_scores.items(), key=lambda x: x[1])
+        
+        # 상위 k개 모델 선택
+        selected_models = [model[0] for model in sorted_models[:top_k]]
+        
+        logger.info(f"성능 기반 모델 선택: {selected_models}")
+        return selected_models
+
     def run_forecast_pipeline(self, processed_data: pd.DataFrame,
                             target_columns: List[str],
                             forecast_horizon: int = 12) -> Dict:

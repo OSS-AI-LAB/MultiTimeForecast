@@ -3,10 +3,11 @@
 ## 📋 목차
 1. [환경 설정](#환경-설정)
 2. [데이터 준비](#데이터-준비)
-3. [시스템 실행](#시스템-실행)
-4. [주피터 노트북 사용법](#주피터-노트북-사용법)
-5. [결과 해석](#결과-해석)
-6. [문제 해결](#문제-해결)
+3. [모델 선택 및 설정](#모델-선택-및-설정)
+4. [시스템 실행](#시스템-실행)
+5. [주피터 노트북 사용법](#주피터-노트북-사용법)
+6. [결과 해석](#결과-해석)
+7. [문제 해결](#문제-해결)
 
 ---
 
@@ -95,6 +96,153 @@ timesFM/
 
 ---
 
+## 🤖 모델 선택 및 설정
+
+### 1. 지원 모델
+
+시스템은 다음 5가지 모델을 지원합니다:
+
+| 모델 | 타입 | 특징 | 적합한 데이터 |
+|------|------|------|---------------|
+| **TFT** | 다변량 | 복잡한 패턴 학습, 변수 간 관계 고려 | 다변량, 복잡한 시계열 |
+| **Prophet** | 단변량 | 계절성 처리 우수, 해석 가능 | 계절성이 강한 단변량 |
+| **LSTM** | 단변량 | 긴 시퀀스 처리, 안정적 | 긴 의존성이 있는 시계열 |
+| **GRU** | 단변량 | LSTM보다 빠름, 적은 파라미터 | 중간 길이 의존성 |
+| **Transformer** | 단변량 | 병렬 처리, 어텐션 메커니즘 | 복잡한 패턴, 충분한 데이터 |
+
+### 2. 모델 선택 전략
+
+#### 전략 1: TFT 전용 모드 (`strategy: "tft_only"`)
+```yaml
+model:
+  strategy: "tft_only"
+```
+- **용도**: 빠른 예측, 단일 모델 신뢰도
+- **장점**: 빠른 실행 (5-10분), 안정적
+- **단점**: 앙상블 효과 없음
+
+#### 전략 2: 기존 앙상블 모드 (`strategy: "ensemble"`)
+```yaml
+model:
+  strategy: "ensemble"
+  use_ensemble: true
+  ensemble:
+    methods: ["tft", "prophet"]
+    weights: [0.7, 0.3]
+```
+- **용도**: TFT + Prophet 조합
+- **장점**: 검증된 조합, 안정적 (10-15분)
+- **단점**: 제한된 모델 조합
+
+#### 전략 3: 다중 모델 앙상블 (`strategy: "multi_model"`)
+```yaml
+model:
+  strategy: "multi_model"
+  multi_model_ensemble:
+    enabled: true
+    models: ["tft", "prophet", "lstm", "gru", "transformer"]
+    weights: [0.4, 0.2, 0.15, 0.15, 0.1]
+```
+- **용도**: 최고 성능 추구
+- **장점**: 다양한 모델의 장점 활용
+- **단점**: 긴 실행 시간 (30-60분), 복잡성
+
+#### 전략 4: 자동 선택 모드 (`strategy: "auto_select"`)
+```yaml
+model:
+  strategy: "auto_select"
+```
+- **용도**: 성능 기반 자동 선택
+- **장점**: 데이터에 최적화된 모델 선택
+- **단점**: 평가 시간 필요
+
+### 3. 권장 사용 시나리오
+
+#### 시나리오 1: 빠른 프로토타이핑
+```yaml
+model:
+  strategy: "tft_only"
+  use_ensemble: false
+```
+
+#### 시나리오 2: 안정적인 프로덕션
+```yaml
+model:
+  strategy: "ensemble"
+  use_ensemble: true
+  ensemble:
+    methods: ["tft", "prophet"]
+    weights: [0.7, 0.3]
+```
+
+#### 시나리오 3: 최고 성능 추구
+```yaml
+model:
+  strategy: "multi_model"
+  multi_model_ensemble:
+    enabled: true
+    models: ["tft", "prophet", "lstm", "gru", "transformer"]
+    weights: [0.4, 0.2, 0.15, 0.15, 0.1]
+```
+
+### 4. 모델별 설정
+
+#### TFT 모델 설정
+```yaml
+model:
+  tft:
+    input_chunk_length: 6     # 입력 시퀀스 길이
+    output_chunk_length: 3    # 출력 시퀀스 길이
+    hidden_size: 64          # 히든 레이어 크기
+    lstm_layers: 1           # LSTM 레이어 수
+    num_attention_heads: 4   # 어텐션 헤드 수
+    dropout: 0.1            # 드롭아웃 비율
+    n_epochs: 50            # 훈련 에포크
+    batch_size: 32          # 배치 크기
+```
+
+#### LSTM 모델 설정
+```yaml
+model:
+  lstm:
+    input_chunk_length: 6
+    hidden_dim: 64
+    n_rnn_layers: 2
+    dropout: 0.1
+    n_epochs: 50
+    batch_size: 32
+```
+
+#### GRU 모델 설정
+```yaml
+model:
+  gru:
+    input_chunk_length: 6
+    hidden_dim: 64
+    n_rnn_layers: 2
+    dropout: 0.1
+    n_epochs: 50
+    batch_size: 32
+```
+
+#### Transformer 모델 설정
+```yaml
+model:
+  transformer:
+    input_chunk_length: 6
+    output_chunk_length: 3
+    d_model: 64
+    nhead: 8
+    num_encoder_layers: 4
+    num_decoder_layers: 4
+    dim_feedforward: 256
+    dropout: 0.1
+    n_epochs: 50
+    batch_size: 32
+```
+
+---
+
 ## 🚀 시스템 실행
 
 ### 1. 기본 실행
@@ -115,8 +263,8 @@ python main.py
    - 계정과목 필터링
    - 특성 엔지니어링
 3. **예측기 초기화**
-   - TFT 모델 설정
-   - Prophet 모델 설정 (앙상블 사용 시)
+   - 선택된 모델 설정
+   - 앙상블 구성
 4. **예측 파이프라인 실행**
    - 모델 훈련
    - 예측 수행
@@ -139,16 +287,18 @@ data:
     exclude_patterns: ["<할인>", "<포인트>"]  # 제외 패턴
 ```
 
-#### 모델 설정
+#### 모델 전략 설정
 ```yaml
 model:
-  use_ensemble: true  # 앙상블 사용 여부
-  tft:
-    input_chunk_length: 6     # 입력 시퀀스 길이
-    output_chunk_length: 3    # 출력 시퀀스 길이
-    n_epochs: 50             # 훈련 에포크
+  strategy: "ensemble"  # "tft_only", "ensemble", "multi_model", "auto_select"
+  use_ensemble: true    # 앙상블 사용 여부
   ensemble:
+    methods: ["tft", "prophet"]
     weights: [0.7, 0.3]      # TFT 70%, Prophet 30%
+  multi_model_ensemble:
+    enabled: false           # 다중 모델 앙상블 사용 여부
+    models: ["tft", "prophet", "lstm", "gru", "transformer"]
+    weights: [0.4, 0.2, 0.15, 0.15, 0.1]
 ```
 
 #### 예측 설정
@@ -216,7 +366,24 @@ print(f"처리된 계정과목: {len(feature_info['account_columns'])}개")
 print(f"처리된 제품: {len(feature_info['product_columns'])}개")
 ```
 
-#### Step 3: 예측 모델 실행
+#### Step 3: 모델 전략 설정
+```python
+# 설정 파일에서 모델 전략 확인
+import yaml
+with open('config/config.yaml', 'r', encoding='utf-8') as f:
+    config = yaml.safe_load(f)
+
+strategy = config['model']['strategy']
+print(f"현재 모델 전략: {strategy}")
+
+if strategy == "multi_model":
+    models = config['model']['multi_model_ensemble']['models']
+    weights = config['model']['multi_model_ensemble']['weights']
+    print(f"사용 모델: {models}")
+    print(f"가중치: {weights}")
+```
+
+#### Step 4: 예측 모델 실행
 ```python
 # 예측기 생성
 forecaster = TelecomForecaster()
@@ -234,7 +401,7 @@ results = forecaster.run_forecast_pipeline(
 print("예측 완료!")
 ```
 
-#### Step 4: 결과 시각화
+#### Step 5: 결과 시각화
 ```python
 # 시각화기 생성
 visualizer = TelecomVisualizer()
@@ -279,12 +446,30 @@ jupyter nbconvert --to pdf notebooks/telecom_forecasting_demo.ipynb
 #### 시각화 파일
 - `forecast_plot.html`: 예측 결과 차트
 - `accuracy_plot.html`: 모델 정확도 비교
-- `correlation_plot.html`: 계정과목 간 상관관계
 - `seasonal_plot.html`: 계절성 분석
-
 - `dashboard.html`: 종합 대시보드
 
-### 2. 결과 해석 방법
+### 2. 모델별 성능 비교
+
+#### 성능 지표
+- **MAE**: 평균 절대 오차
+- **MAPE**: 평균 절대 백분율 오차
+- **RMSE**: 평균 제곱근 오차
+- **SMAPE**: 대칭 평균 절대 백분율 오차
+
+#### 모델별 특징
+```python
+# 모델별 성능 확인
+evaluation_results = results['evaluation_results']
+
+for model_name, model_results in evaluation_results.items():
+    print(f"\n{model_name.upper()} 모델 성능:")
+    for col, metrics in model_results.items():
+        mape = metrics.get('mape', 'N/A')
+        print(f"  {col}: MAPE = {mape:.2f}%")
+```
+
+### 3. 결과 해석 방법
 
 #### 예측 정확도 평가
 ```python
@@ -311,7 +496,7 @@ for col in target_columns:
 - **무선전화_플랫폼이용료**: 데이터 서비스 수익
 - **무선전화_통화서비스**: 음성 서비스 수익
 
-### 3. 비즈니스 인사이트 도출
+### 4. 비즈니스 인사이트 도출
 
 #### 기술별 전략
 - **5G**: 신규 투자 및 마케팅 강화
@@ -355,6 +540,12 @@ pip install openpyxl
 model:
   tft:
     batch_size: 16  # 기본값 32에서 줄임
+  lstm:
+    batch_size: 16
+  gru:
+    batch_size: 16
+  transformer:
+    batch_size: 16
 ```
 
 #### 훈련 시간이 너무 긴 경우
@@ -364,9 +555,47 @@ model:
 model:
   tft:
     n_epochs: 25  # 기본값 50에서 줄임
+  lstm:
+    n_epochs: 25
+  gru:
+    n_epochs: 25
+  transformer:
+    n_epochs: 25
 ```
 
-### 2. 성능 최적화
+### 2. 모델별 최적화
+
+#### TFT 모델 최적화
+```yaml
+model:
+  tft:
+    input_chunk_length: 4   # 입력 시퀀스 길이 줄임
+    output_chunk_length: 2  # 출력 시퀀스 길이 줄임
+    hidden_size: 32        # 히든 크기 줄임
+    lstm_layers: 1         # 레이어 수 줄임
+```
+
+#### LSTM/GRU 모델 최적화
+```yaml
+model:
+  lstm:
+    hidden_dim: 32         # 히든 크기 줄임
+    n_rnn_layers: 1        # 레이어 수 줄임
+  gru:
+    hidden_dim: 32
+    n_rnn_layers: 1
+```
+
+#### Transformer 모델 최적화
+```yaml
+model:
+  transformer:
+    d_model: 32           # 모델 크기 줄임
+    num_encoder_layers: 2 # 인코더 레이어 줄임
+    num_decoder_layers: 2 # 디코더 레이어 줄임
+```
+
+### 3. 성능 최적화
 
 #### GPU 사용 (선택사항)
 ```python
@@ -391,7 +620,7 @@ model:
     output_chunk_length: 2  # 출력 시퀀스 길이 줄임
 ```
 
-### 3. 디버깅 팁
+### 4. 디버깅 팁
 
 #### 로그 확인
 ```python
@@ -431,6 +660,7 @@ print("2. 예측 완료")
 - [Darts 라이브러리 공식 문서](https://unit8co.github.io/darts/)
 - [PyTorch 공식 문서](https://pytorch.org/docs/)
 - [Pandas 공식 문서](https://pandas.pydata.org/docs/)
+- [MODEL_USAGE_GUIDE.md](MODEL_USAGE_GUIDE.md): 상세한 모델 사용 가이드
 
 ### 2. 커뮤니티 지원
 - GitHub Issues: 프로젝트 저장소의 Issues 탭
@@ -457,6 +687,12 @@ print("2. 예측 완료")
 - [ ] 파일 경로 설정
 - [ ] 파일 형식 확인
 
+### 모델 설정
+- [ ] 모델 전략 선택 (tft_only, ensemble, multi_model, auto_select)
+- [ ] 앙상블 설정 확인
+- [ ] 모델별 파라미터 조정
+- [ ] 실행 시간 및 리소스 고려
+
 ### 시스템 실행
 - [ ] 설정 파일 확인
 - [ ] 메인 스크립트 실행
@@ -466,10 +702,11 @@ print("2. 예측 완료")
 ### 결과 확인
 - [ ] 예측 결과 파일 확인
 - [ ] 시각화 파일 확인
+- [ ] 모델별 성능 비교
 - [ ] 결과 해석 및 인사이트 도출
 - [ ] 보고서 작성
 
 ---
 
 **마지막 업데이트**: 2024년 12월
-**버전**: 2.0 
+**버전**: 3.0 (다중 모델 지원) 

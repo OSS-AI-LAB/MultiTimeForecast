@@ -296,101 +296,7 @@ class TelecomVisualizer:
         
         return fig
     
-    def create_feature_importance_plot(self, processed_data: pd.DataFrame,
-                                     target_columns: List[str]) -> go.Figure:
-        """특성 중요도 시각화 (상관관계 기반) - 개선된 디자인"""
-        # 계정과목 컬럼만 선택
-        account_cols = [col for col in processed_data.columns 
-                       if col not in ['year', 'month', 'quarter', 'sin_month', 'cos_month', 
-                                    'sin_quarter', 'cos_quarter', 'year_since_start']]
-        
-        # 상관관계 계산
-        correlation_matrix = processed_data[account_cols].corr()
-        
-        # 중요 상관관계 식별 (절댓값 0.7 이상)
-        strong_correlations = []
-        for i in range(len(correlation_matrix.columns)):
-            for j in range(i+1, len(correlation_matrix.columns)):
-                corr_value = correlation_matrix.iloc[i, j]
-                if abs(corr_value) >= 0.7:
-                    strong_correlations.append({
-                        'var1': correlation_matrix.columns[i],
-                        'var2': correlation_matrix.columns[j],
-                        'correlation': corr_value,
-                        'type': '강한 양의 상관관계' if corr_value > 0 else '강한 음의 상관관계'
-                    })
-        
-        # 상관관계 강도별 색상 스케일
-        fig = go.Figure(data=go.Heatmap(
-            z=correlation_matrix.values,
-            x=correlation_matrix.columns,
-            y=correlation_matrix.columns,
-            colorscale=[
-                [0, '#e74c3c'],    # 빨간색 (강한 음의 상관관계)
-                [0.3, '#f39c12'],  # 주황색 (약한 음의 상관관계)
-                [0.5, '#ecf0f1'],  # 회색 (무상관)
-                [0.7, '#3498db'],  # 파란색 (약한 양의 상관관계)
-                [1, '#2ecc71']     # 초록색 (강한 양의 상관관계)
-            ],
-            zmid=0,
-            text=np.round(correlation_matrix.values, 2),
-            texttemplate="<b>%{text}</b>",
-            textfont={"size": 10, "color": "#2c3e50"},
-            hoverongaps=False,
-            hovertemplate='<b>%{y}</b> vs <b>%{x}</b><br>상관계수: %{z:.3f}<br>해석: %{customdata}<extra></extra>',
-            customdata=[[
-                '강한 양의 상관관계' if val > 0.7 else
-                '약한 양의 상관관계' if val > 0.3 else
-                '약한 음의 상관관계' if val < -0.3 else
-                '강한 음의 상관관계' if val < -0.7 else
-                '무상관관계'
-                for val in row
-            ] for row in correlation_matrix.values]
-        ))
-        
-        # 레이아웃 업데이트
-        fig.update_layout(
-            title=dict(
-                text="<b>🔗 계정과목 간 상관관계 분석</b><br><sub>강한 상관관계(±0.7 이상) 하이라이트</sub>",
-                x=0.5,
-                font=dict(size=16, color='#2c3e50')
-            ),
-            width=700,  # 크기 축소
-            height=600,  # 크기 축소
-            template="plotly_white",
-            font=dict(family="Arial, sans-serif", size=10),
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=80, r=80, t=100, b=80),  # 여백 축소
-            xaxis=dict(
-                title="계정과목",
-                tickangle=45,
-                tickfont=dict(size=8)
-            ),
-            yaxis=dict(
-                title="계정과목",
-                tickfont=dict(size=8)
-            )
-        )
-        
-        # 중요 상관관계 정보 추가
-        if strong_correlations:
-            info_text = "<b>🔍 주요 발견사항:</b><br>"
-            for i, corr in enumerate(strong_correlations[:5]):  # 상위 5개만
-                info_text += f"• {corr['var1']} ↔ {corr['var2']}: {corr['correlation']:.2f}<br>"
-            
-            fig.add_annotation(
-                x=0.02, y=0.98,
-                xref='paper', yref='paper',
-                text=info_text,
-                showarrow=False,
-                font=dict(size=10, color='#2c3e50'),
-                bgcolor='rgba(255,255,255,0.9)',
-                bordercolor='#3498db',
-                borderwidth=1
-            )
-        
-        return fig
+
     
     def create_seasonal_decomposition_plot(self, time_series_dict: Dict,
                                          target_columns: List[str]) -> go.Figure:
@@ -410,9 +316,9 @@ class TelecomVisualizer:
         for i, col in enumerate(target_columns):
             if col in time_series_dict:
                 series = time_series_dict[col]
-                values = series.values()
+                values = series.values
                 # 다변량 시계열인 경우 1차원으로 변환
-                if values.ndim > 1:
+                if hasattr(values, 'ndim') and values.ndim > 1:
                     values = values.flatten()
                 dates = series.time_index
                 
@@ -581,7 +487,7 @@ class TelecomVisualizer:
                     charts_html += f"""
                     <div class="chart">
                         <h3>📊 예측 결과</h3>
-                        <div id="forecast-chart">{forecast_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
+                        <div id="forecast-chart">{forecast_fig.to_html(full_html=False, include_plotlyjs=True)}</div>
                     </div>
                     """
                 except Exception as e:
@@ -599,19 +505,20 @@ class TelecomVisualizer:
                 charts_html += f"""
                 <div class="chart">
                     <h3>🎯 모델 성능 비교</h3>
-                    <div id="accuracy-chart">{accuracy_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
+                    <div id="accuracy-chart">{accuracy_fig.to_html(full_html=False, include_plotlyjs=True)}</div>
+                </div>
+                """
+                
+                # 3. 모델 비교 요약 차트 추가
+                comparison_fig = self.create_model_comparison_summary(results['evaluation_results'])
+                charts_html += f"""
+                <div class="chart">
+                    <h3>🏆 모델 성능 종합 분석</h3>
+                    <div id="comparison-chart">{comparison_fig.to_html(full_html=False, include_plotlyjs=True)}</div>
                 </div>
                 """
             
-            # 3. 상관관계 분석 차트
-            if processed_data is not None and target_columns is not None:
-                correlation_fig = self.create_feature_importance_plot(processed_data, target_columns)
-                charts_html += f"""
-                <div class="chart">
-                    <h3>🔗 상관관계 분석</h3>
-                    <div id="correlation-chart">{correlation_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
-                </div>
-                """
+
             
             # 4. 계절성 분석 차트
             if 'time_series_dict' in results and target_columns is not None:
@@ -619,7 +526,7 @@ class TelecomVisualizer:
                 charts_html += f"""
                 <div class="chart">
                     <h3>📅 계절성 분석</h3>
-                    <div id="seasonal-chart">{seasonal_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
+                    <div id="seasonal-chart">{seasonal_fig.to_html(full_html=False, include_plotlyjs=True)}</div>
                 </div>
                 """
             
@@ -772,11 +679,7 @@ class TelecomVisualizer:
         )
         comparison_fig.write_html(self.results_dir / "model_comparison_summary.html")
         
-        # 3. 특성 중요도 시각화
-        importance_fig = self.create_feature_importance_plot(
-            processed_data, target_columns
-        )
-        importance_fig.write_html(self.results_dir / "correlation_plot.html")
+
         
         # 4. 계절성 분해 시각화
         seasonal_fig = self.create_seasonal_decomposition_plot(

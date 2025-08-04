@@ -1,6 +1,6 @@
 # TimesFM - 통신사 재무 예측 시스템
 
-Darts 라이브러리의 TFTModel을 활용한 통신사 계정과목별 매출 예측 시스템입니다.
+Darts 라이브러리의 다중 모델을 활용한 통신사 계정과목별 매출 예측 시스템입니다.
 
 ## 🎯 프로젝트 개요
 
@@ -9,11 +9,21 @@ Darts 라이브러리의 TFTModel을 활용한 통신사 계정과목별 매출 
 ### 주요 특징
 
 - **계정과목별 예측**: GL_ACC_LSN_NM을 기준으로 한 다변량 시계열 예측
-- **Darts TFTModel**: Temporal Fusion Transformer를 활용한 고성능 예측
-- **앙상블 모델**: TFT + Prophet 모델 앙상블
+- **다중 모델 지원**: TFT, Prophet, LSTM, GRU, Transformer 모델
+- **유연한 앙상블**: 다양한 모델 조합 및 전략 지원
 - **동적 특성 엔지니어링**: 시간적 특성, 지연 특성, 이동평균 등
 - **다양한 파일 형식 지원**: CSV, Excel (.xlsx, .xls), DRM 보호 파일 포함
 - **자동 인코딩 감지**: chardet를 사용한 자동 인코딩 감지
+
+## 🤖 지원 모델
+
+| 모델 | 타입 | 특징 | 적합한 데이터 |
+|------|------|------|---------------|
+| **TFT** | 다변량 | 복잡한 패턴 학습, 변수 간 관계 고려 | 다변량, 복잡한 시계열 |
+| **Prophet** | 단변량 | 계절성 처리 우수, 해석 가능 | 계절성이 강한 단변량 |
+| **LSTM** | 단변량 | 긴 시퀀스 처리, 안정적 | 긴 의존성이 있는 시계열 |
+| **GRU** | 단변량 | LSTM보다 빠름, 적은 파라미터 | 중간 길이 의존성 |
+| **Transformer** | 단변량 | 병렬 처리, 어텐션 메커니즘 | 복잡한 패턴, 충분한 데이터 |
 
 ## 📊 데이터 구조
 
@@ -48,7 +58,7 @@ timesFM/
 │   └── processed/               # 처리된 데이터
 ├── src/
 │   ├── data_processor.py        # 데이터 처리 모듈
-│   ├── models.py               # 예측 모델 (Darts TFTModel)
+│   ├── models.py               # 예측 모델 (다중 모델 지원)
 │   └── visualizer.py           # 시각화 모듈
 ├── notebooks/
 │   └── telecom_forecasting_demo.ipynb  # 주피터 노트북 데모
@@ -56,6 +66,8 @@ timesFM/
 ├── logs/                       # 로그 파일
 ├── main.py                     # 메인 실행 스크립트
 ├── requirements.txt            # 의존성 목록
+├── USER_GUIDE.md              # 사용자 가이드
+├── MODEL_USAGE_GUIDE.md       # 모델 사용 가이드
 └── README.md                   # 프로젝트 문서
 ```
 
@@ -105,19 +117,66 @@ data:
     exclude_patterns: ["<할인>", "<포인트>"]  # 제외 패턴
 ```
 
-### 모델 설정
+### 모델 전략 설정
 ```yaml
 model:
-  use_ensemble: true  # true: TFT + Prophet 앙상블, false: TFT만 사용
+  # 모델 선택 전략
+  strategy: "ensemble"  # "tft_only", "ensemble", "multi_model", "auto_select"
+  
+  # 기존 앙상블 설정
+  use_ensemble: true
+  ensemble:
+    methods: ["tft", "prophet"]
+    weights: [0.7, 0.3]      # TFT 70%, Prophet 30%
+  
+  # 다중 모델 앙상블 설정
+  multi_model_ensemble:
+    enabled: false           # true로 설정하면 모든 모델 사용
+    models: ["tft", "prophet", "lstm", "gru", "transformer"]
+    weights: [0.4, 0.2, 0.15, 0.15, 0.1]
+```
+
+### 모델별 설정
+```yaml
+model:
+  # TFT 모델 설정
   tft:
     input_chunk_length: 6     # 입력 시퀀스 길이
     output_chunk_length: 3    # 출력 시퀀스 길이
     hidden_size: 64          # 히든 레이어 크기
     num_attention_heads: 4   # 어텐션 헤드 수
     n_epochs: 50            # 훈련 에포크
-  ensemble:
-    methods: ["tft", "prophet"]
-    weights: [0.7, 0.3]     # TFT 70%, Prophet 30%
+  
+  # LSTM 모델 설정
+  lstm:
+    input_chunk_length: 6
+    hidden_dim: 64
+    n_rnn_layers: 2
+    dropout: 0.1
+    n_epochs: 50
+    batch_size: 32
+  
+  # GRU 모델 설정
+  gru:
+    input_chunk_length: 6
+    hidden_dim: 64
+    n_rnn_layers: 2
+    dropout: 0.1
+    n_epochs: 50
+    batch_size: 32
+  
+  # Transformer 모델 설정
+  transformer:
+    input_chunk_length: 6
+    output_chunk_length: 3
+    d_model: 64
+    nhead: 8
+    num_encoder_layers: 4
+    num_decoder_layers: 4
+    dim_feedforward: 256
+    dropout: 0.1
+    n_epochs: 50
+    batch_size: 32
 ```
 
 ### 예측 설정
@@ -127,6 +186,41 @@ forecasting:
   validation_periods: 6      # 검증 기간
 ```
 
+## 🎯 모델 선택 가이드
+
+### 빠른 프로토타이핑
+```yaml
+model:
+  strategy: "tft_only"
+  use_ensemble: false
+```
+- **실행 시간**: 5-10분
+- **용도**: 빠른 결과 확인
+
+### 안정적인 프로덕션
+```yaml
+model:
+  strategy: "ensemble"
+  use_ensemble: true
+  ensemble:
+    methods: ["tft", "prophet"]
+    weights: [0.7, 0.3]
+```
+- **실행 시간**: 10-15분
+- **용도**: 검증된 조합
+
+### 최고 성능 추구
+```yaml
+model:
+  strategy: "multi_model"
+  multi_model_ensemble:
+    enabled: true
+    models: ["tft", "prophet", "lstm", "gru", "transformer"]
+    weights: [0.4, 0.2, 0.15, 0.15, 0.1]
+```
+- **실행 시간**: 30-60분
+- **용도**: 최고 정확도
+
 ## 📈 예측 결과
 
 ### 출력 파일
@@ -134,11 +228,9 @@ forecasting:
 - `results/forecast_results.csv`: 예측 결과
 - `results/evaluation_results.csv`: 모델 평가 결과
 - `results/forecast_plot.html`: 예측 차트
-- `results/accuracy_plot.html`: 모델 정확도 비교 (개선됨)
-- `results/model_comparison_summary.html`: 모델 종합 분석 (신규)
-- `results/correlation_plot.html`: 계정과목 간 상관관계
+- `results/accuracy_plot.html`: 모델 정확도 비교
+- `results/model_comparison_summary.html`: 모델 종합 분석
 - `results/seasonal_plot.html`: 계절성 분석
-
 - `results/dashboard.html`: 종합 대시보드
 
 ### 예측 성능 지표
@@ -162,9 +254,12 @@ forecasting:
 
 ### 2. 모델링
 
-- **TFTModel**: Darts의 Temporal Fusion Transformer
-- **Prophet**: Facebook의 시계열 예측 모델
-- **앙상블**: TFT + Prophet 가중 평균
+- **TFTModel**: Darts의 Temporal Fusion Transformer (다변량)
+- **Prophet**: Facebook의 시계열 예측 모델 (단변량)
+- **LSTM**: Long Short-Term Memory 네트워크 (단변량)
+- **GRU**: Gated Recurrent Unit (단변량)
+- **Transformer**: Attention 기반 모델 (단변량)
+- **앙상블**: 다양한 모델 조합 및 가중 평균
 
 ### 3. 시각화
 
@@ -180,6 +275,7 @@ forecasting:
 === 예측 완료 ===
 예측 기간: 12개월
 예측된 계정과목: 10개
+사용 모델: TFT + Prophet + LSTM + GRU + Transformer
 
 최종 예측값 (12개월 후):
   무선전화_기본료: 1,750,000,000원
@@ -187,6 +283,14 @@ forecasting:
   무선전화_통화서비스: 1,500,000,000원
   무선전화_데이터(TRAFFIC)이용료: 28,000,000원
   유선전화_기본료: 55,000,000원
+
+모델별 성능 비교:
+  TFT: MAPE = 3.2%
+  Prophet: MAPE = 4.1%
+  LSTM: MAPE = 3.8%
+  GRU: MAPE = 3.9%
+  Transformer: MAPE = 4.2%
+  앙상블: MAPE = 2.9%
 
 성장률 분석 (12개월):
   무선전화_기본료: +3.12%
@@ -204,6 +308,11 @@ forecasting:
 # 주피터 노트북 실행
 jupyter notebook notebooks/telecom_forecasting_demo.ipynb
 ```
+
+## 📚 문서
+
+- **[USER_GUIDE.md](USER_GUIDE.md)**: 상세한 사용자 가이드
+- **[MODEL_USAGE_GUIDE.md](MODEL_USAGE_GUIDE.md)**: 모델 선택 및 사용 가이드
 
 ## 🤝 기여
 
@@ -233,11 +342,45 @@ ERROR: 'utf-8' codec can't decode byte 0xd0 in position 10: invalid continuation
 ### DRM 보호 파일 오류 해결
 Excel 파일이 DRM으로 보호되어 있는 경우에도 자동으로 처리됩니다.
 
+### 메모리 부족 오류 해결
+```yaml
+# config/config.yaml에서 배치 크기 줄이기
+model:
+  tft:
+    batch_size: 16  # 기본값 32에서 줄임
+  lstm:
+    batch_size: 16
+  gru:
+    batch_size: 16
+  transformer:
+    batch_size: 16
+```
+
+### 훈련 시간 단축
+```yaml
+# config/config.yaml에서 에포크 수 줄이기
+model:
+  tft:
+    n_epochs: 25  # 기본값 50에서 줄임
+  lstm:
+    n_epochs: 25
+  gru:
+    n_epochs: 25
+  transformer:
+    n_epochs: 25
+```
+
 ### 기타 문제
 - 가상환경이 활성화되어 있는지 확인
 - Python 3.11 이상 버전 사용
 - 충분한 메모리 확보 (최소 8GB 권장)
+- GPU 사용 시 CUDA 설치 확인
 
 ## 📞 문의
 
-프로젝트에 대한 문의사항이 있으시면 이슈를 생성해 주세요. 
+프로젝트에 대한 문의사항이 있으시면 이슈를 생성해 주세요.
+
+---
+
+**버전**: 3.0 (다중 모델 지원)
+**마지막 업데이트**: 2024년 12월 

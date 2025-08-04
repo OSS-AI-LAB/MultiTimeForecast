@@ -132,7 +132,7 @@ def main():
         print(f"  - 평가 결과: results/evaluation_results.csv")
         print(f"  - 예측 차트: results/forecast_plot.html")
         print(f"  - 정확도 차트: results/accuracy_plot.html")
-        print(f"  - 상관관계 차트: results/correlation_plot.html")
+
         print(f"  - 계절성 차트: results/seasonal_plot.html")
 
         print(f"  - 대시보드: {report_path}")
