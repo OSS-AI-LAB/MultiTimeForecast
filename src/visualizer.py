@@ -276,16 +276,20 @@ class TelecomVisualizer:
             showlegend=False
         )
         
-        # 각 서브플롯 스타일링
+        # 각 서브플롯 스타일링 (파이 차트 제외)
         for i in range(1, 3):
             for j in range(1, 3):
+                # 파이 차트는 스킵
+                if i == 1 and j == 2:
+                    continue
+                    
                 fig.update_xaxes(
-                    title_text="모델",
+                    title_text="모델" if i == 2 and j == 1 else "날짜",
                     gridcolor='rgba(128,128,128,0.2)',
                     row=i, col=j
                 )
                 fig.update_yaxes(
-                    title_text="값",
+                    title_text="성장률 (%)" if i == 2 and j == 1 else "금액 (원)",
                     gridcolor='rgba(128,128,128,0.2)',
                     row=i, col=j
                 )
@@ -549,7 +553,7 @@ class TelecomVisualizer:
                 "📈 계층별 성장률",
                 "🎯 예측 정확도 분석"
             ],
-            specs=[[{"secondary_y": False}, {"secondary_y": False}],
+            specs=[[{"secondary_y": False}, {"type": "pie"}],
                    [{"secondary_y": False}, {"secondary_y": False}]]
         )
         
@@ -706,6 +710,13 @@ class TelecomVisualizer:
             paper_bgcolor='rgba(0,0,0,0)',
             margin=dict(l=80, r=80, t=120, b=80),
             showlegend=True
+        )
+        
+        # 파이 차트 영역 스타일링
+        fig.update_traces(
+            selector=dict(type='pie'),
+            textfont_size=10,
+            textinfo='label+percent'
         )
         
         return fig
