@@ -534,16 +534,22 @@ class TelecomVisualizer:
             logger.warning("hierarchical_data가 비어있어 기본 데이터로 대체합니다.")
             # forecast_data를 기반으로 간단한 계층 구조 생성
             if not forecast_data.empty:
-                hierarchical_data = {
-                    'total': pd.DataFrame({
-                        'total_revenue': forecast_data.sum(axis=1)
-                    }, index=forecast_data.index)
-                }
-                # 각 계정과목을 개별 계층으로 추가
-                for col in forecast_data.columns:
-                    hierarchical_data[f'account_{col}'] = pd.DataFrame({
-                        col: forecast_data[col]
-                    }, index=forecast_data.index)
+                try:
+                    hierarchical_data = {
+                        'total': pd.DataFrame({
+                            'total_revenue': forecast_data.sum(axis=1)
+                        }, index=forecast_data.index)
+                    }
+                    # 각 계정과목을 개별 계층으로 추가
+                    for col in forecast_data.columns:
+                        hierarchical_data[f'account_{col}'] = pd.DataFrame({
+                            col: forecast_data[col]
+                        }, index=forecast_data.index)
+                except Exception as e:
+                    logger.error(f"hierarchical_data 생성 실패: {e}")
+                    hierarchical_data = {}
+            else:
+                hierarchical_data = {}
         
         fig = make_subplots(
             rows=2, cols=2,
@@ -687,12 +693,27 @@ class TelecomVisualizer:
                 )
                 
                 # X축 범위 설정 - 전체 데이터 범위로
-                all_dates = pd.concat([actual_data.index, forecast_data.index])
-                if not all_dates.empty:
-                    fig.update_xaxes(
-                        range=[all_dates.min(), all_dates.max()],
-                        row=2, col=2
-                    )
+                try:
+                    # DatetimeIndex를 Series로 변환하여 concat
+                    actual_dates = pd.Series(actual_data.index)
+                    forecast_dates = pd.Series(forecast_data.index)
+                    all_dates = pd.concat([actual_dates, forecast_dates])
+                    
+                    if not all_dates.empty:
+                        fig.update_xaxes(
+                            range=[all_dates.min(), all_dates.max()],
+                            row=2, col=2
+                        )
+                except Exception as e:
+                    logger.warning(f"X축 범위 설정 실패: {e}")
+                    # 기본 범위 설정
+                    if not actual_data.empty and not forecast_data.empty:
+                        min_date = min(actual_data.index.min(), forecast_data.index.min())
+                        max_date = max(actual_data.index.max(), forecast_data.index.max())
+                        fig.update_xaxes(
+                            range=[min_date, max_date],
+                            row=2, col=2
+                        )
                 
                 # 예측 정확도 계산
                 if len(actual_data) > 0 and len(forecast_data) > 0:

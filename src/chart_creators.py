@@ -163,17 +163,26 @@ class ChartCreators:
         
         # 각 서브플롯 스타일링 - X축 범위 개선
         for i in range(len(target_columns)):
-            # 전체 데이터 범위 계산
-            all_data = pd.concat([actual_display, forecast_display])
-            if not all_data.empty:
-                # X축 범위를 전체 데이터에 맞게 설정
-                fig.update_xaxes(
-                    title_text="날짜",
-                    gridcolor='rgba(128,128,128,0.2)',
-                    range=[all_data.index.min(), all_data.index.max()],
-                    row=i+1, col=1
-                )
-            else:
+            try:
+                # 전체 데이터 범위 계산
+                all_data = pd.concat([actual_display, forecast_display])
+                if not all_data.empty:
+                    # X축 범위를 전체 데이터에 맞게 설정
+                    fig.update_xaxes(
+                        title_text="날짜",
+                        gridcolor='rgba(128,128,128,0.2)',
+                        range=[all_data.index.min(), all_data.index.max()],
+                        row=i+1, col=1
+                    )
+                else:
+                    fig.update_xaxes(
+                        title_text="날짜",
+                        gridcolor='rgba(128,128,128,0.2)',
+                        row=i+1, col=1
+                    )
+            except Exception as e:
+                logger.warning(f"X축 범위 설정 실패 (차트 {i+1}): {e}")
+                # 기본 X축 설정
                 fig.update_xaxes(
                     title_text="날짜",
                     gridcolor='rgba(128,128,128,0.2)',
