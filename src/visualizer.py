@@ -325,7 +325,7 @@ class TelecomVisualizer:
                 dates = series.time_index
                 
                 # 개선된 계절성 분석
-                if len(values) >= 12:
+                if hasattr(values, '__len__') and len(values) >= 12:
                     # 트렌드 (12개월 이동평균)
                     trend = pd.Series(values).rolling(window=12, center=True).mean()
                     
@@ -423,7 +423,7 @@ class TelecomVisualizer:
             if target_columns[i] in time_series_dict:
                 series = time_series_dict[target_columns[i]]
                 dates = series.time_index
-                if len(dates) > 0:
+                if hasattr(dates, '__len__') and len(dates) > 0:
                     try:
                         fig.update_xaxes(
                             range=[dates.min(), dates.max()],
@@ -484,7 +484,10 @@ class TelecomVisualizer:
                     
                     # 디버깅을 위한 로그 추가
                     logger.info(f"대시보드 예측 차트 생성: {len(processed_data)} 행, {len(target_columns)} 컬럼")
-                    logger.info(f"예측 데이터: {len(results['ensemble_forecast'])} 행, {len(results['ensemble_forecast'].columns)} 컬럼")
+                    if isinstance(results['ensemble_forecast'], pd.DataFrame):
+                        logger.info(f"예측 데이터: {len(results['ensemble_forecast'])} 행, {len(results['ensemble_forecast'].columns)} 컬럼")
+                    else:
+                        logger.warning("예측 데이터가 DataFrame이 아닙니다")
                     
                     charts_html += f"""
                     <div class="chart">
@@ -626,15 +629,15 @@ class TelecomVisualizer:
                     <h2>📈 예측 요약</h2>
                     <div class="summary-grid">
                         <div class="summary-item">
-                            <h3>{len(results.get('ensemble_forecast', pd.DataFrame()))}</h3>
+                            <h3>{len(results.get('ensemble_forecast', pd.DataFrame())) if isinstance(results.get('ensemble_forecast'), pd.DataFrame) else 0}</h3>
                             <p>예측 기간 (개월)</p>
                         </div>
                         <div class="summary-item">
-                            <h3>{len(results.get('ensemble_forecast', pd.DataFrame()).columns)}</h3>
+                            <h3>{len(results.get('ensemble_forecast', pd.DataFrame()).columns) if isinstance(results.get('ensemble_forecast'), pd.DataFrame) else 0}</h3>
                             <p>예측 대상 계정과목</p>
                         </div>
                         <div class="summary-item">
-                            <h3>{len(results.get('evaluation_results', {}))}</h3>
+                            <h3>{len(results.get('evaluation_results', {})) if isinstance(results.get('evaluation_results'), dict) else 0}</h3>
                             <p>사용 모델 수</p>
                         </div>
                     </div>

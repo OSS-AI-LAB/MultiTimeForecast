@@ -60,7 +60,7 @@ class ChartCreators:
                 actual_values = actual_display[col].dropna()
                 forecast_values = forecast_display[col].dropna()
                 
-                if len(actual_values) > 0 and len(forecast_values) > 0:
+                if hasattr(actual_values, '__len__') and hasattr(forecast_values, '__len__') and len(actual_values) > 0 and len(forecast_values) > 0:
                     # 최근 실제값과 예측값 비교
                     recent_actual = actual_values.iloc[-1]
                     first_forecast = forecast_values.iloc[0]
@@ -139,7 +139,7 @@ class ChartCreators:
                     growth_text = f'📈 단기: {short_growth:+.1f}%<br>📊 장기: {long_growth:+.1f}%'
                     
                     # 데이터 부족 경고 추가 (29개월치 데이터)
-                    if len(actual_values) < 36:  # 3년 미만
+                    if hasattr(actual_values, '__len__') and len(actual_values) < 36:  # 3년 미만
                         growth_text += '<br>⚠️ 데이터 부족 (29개월)'
                         growth_color = '#f39c12'  # 주황색으로 경고
                     
@@ -299,7 +299,7 @@ class ChartCreators:
             )
             
             # 성능 차이 정보 추가 (우상단)
-            if len(means) >= 2:
+            if hasattr(means, '__len__') and len(means) >= 2:
                 best_value = means[0] if is_lower_better else means[-1]
                 second_best = means[1] if is_lower_better else means[-2]
                 improvement = ((second_best - best_value) / best_value) * 100 if best_value != 0 else 0
