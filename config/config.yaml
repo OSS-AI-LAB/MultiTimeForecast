@@ -51,28 +51,39 @@ model:
   # 모델 선택 전략
   strategy: "ensemble"  # "tft_only", "ensemble", "multi_model", "auto_select"
   
-  # Darts TFT 모델 설정 (최신 버전 파라미터)
+  # Darts TFT 모델 설정 (데이터 개수에 따른 조건부 설정)
   tft:
-    # 필수 파라미터 (29개 데이터포인트에 맞게 조정)
-    input_chunk_length: 6     # 입력 시퀀스 길이 (12->6로 감소)
-    output_chunk_length: 3    # 출력 시퀀스 길이 (6->3로 감소)
+    # 필수 파라미터 (데이터 개수에 따라 조정 필요)
+    # 29개 데이터포인트 (현재): input_chunk_length=3, output_chunk_length=1
+    # 36개 이상 데이터포인트: input_chunk_length=6, output_chunk_length=3
+    # 48개 이상 데이터포인트: input_chunk_length=12, output_chunk_length=6
+    input_chunk_length: 3     # 입력 시퀀스 길이 (데이터 부족으로 최소화)
+    output_chunk_length: 1    # 출력 시퀀스 길이 (데이터 부족으로 최소화)
     
-    # 모델 아키텍처 파라미터
-    hidden_size: 64           # 히든 레이어 크기
-    lstm_layers: 1            # LSTM 레이어 수 (3->1로 감소)
-    num_attention_heads: 4    # 어텐션 헤드 수
+    # 모델 아키텍처 파라미터 (데이터 개수에 따라 조정)
+    # 29개 데이터포인트 (현재): 경량화 설정
+    # 36개 이상: hidden_size=64, num_attention_heads=4, hidden_continuous_size=8
+    # 48개 이상: hidden_size=128, num_attention_heads=8, hidden_continuous_size=16
+    hidden_size: 32           # 히든 레이어 크기 (데이터 부족으로 경량화)
+    lstm_layers: 1            # LSTM 레이어 수
+    num_attention_heads: 2    # 어텐션 헤드 수 (데이터 부족으로 경량화)
     full_attention: false     # 전체 어텐션 사용 여부
     feed_forward: "GatedResidualNetwork"  # 피드포워드 네트워크 타입
     dropout: 0.1              # 드롭아웃 비율
-    hidden_continuous_size: 8 # 연속 변수 처리 히든 크기
+    hidden_continuous_size: 4 # 연속 변수 처리 히든 크기 (데이터 부족으로 경량화)
     
-    # 특성 관련 파라미터
-    use_static_covariates: true  # 정적 공변량 사용
+    # 특성 관련 파라미터 (데이터 개수에 따라 조정)
+    # 29개 데이터포인트 (현재): use_static_covariates=false (데이터 부족)
+    # 36개 이상: use_static_covariates=true
+    use_static_covariates: false  # 정적 공변량 사용 안함 (데이터 부족)
     norm_type: "LayerNorm"       # 정규화 타입
     
-    # 훈련 관련 파라미터
-    n_epochs: 50              # 훈련 에포크 (100->50으로 감소)
-    batch_size: 32            # 배치 크기
+    # 훈련 관련 파라미터 (데이터 개수에 따라 조정)
+    # 29개 데이터포인트 (현재): 경량화 설정
+    # 36개 이상: n_epochs=50, batch_size=32
+    # 48개 이상: n_epochs=100, batch_size=64
+    n_epochs: 30              # 훈련 에포크 (데이터 부족으로 경량화)
+    batch_size: 16            # 배치 크기 (데이터 부족으로 경량화)
     optimizer_kwargs:
       lr: 0.001               # 학습률
     random_state: 42          # 랜덤 시드
