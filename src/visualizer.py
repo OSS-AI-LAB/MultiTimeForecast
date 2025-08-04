@@ -510,6 +510,39 @@ class TelecomVisualizer:
                         borderwidth=1
                     )
         
+        # 각 서브플롯의 X축 범위 설정
+        for i in range(len(target_columns)):
+            if target_columns[i] in time_series_dict:
+                series = time_series_dict[target_columns[i]]
+                dates = series.time_index
+                if len(dates) > 0:
+                    try:
+                        fig.update_xaxes(
+                            range=[dates.min(), dates.max()],
+                            title_text="날짜",
+                            gridcolor='rgba(128,128,128,0.2)',
+                            row=i+1, col=1
+                        )
+                    except Exception as e:
+                        logger.warning(f"계절성 차트 X축 범위 설정 실패 (차트 {i+1}): {e}")
+                        fig.update_xaxes(
+                            title_text="날짜",
+                            gridcolor='rgba(128,128,128,0.2)',
+                            row=i+1, col=1
+                        )
+                else:
+                    fig.update_xaxes(
+                        title_text="날짜",
+                        gridcolor='rgba(128,128,128,0.2)',
+                        row=i+1, col=1
+                    )
+            
+            fig.update_yaxes(
+                title_text="금액 (원)",
+                gridcolor='rgba(128,128,128,0.2)',
+                row=i+1, col=1
+            )
+        
         fig.update_layout(
             title=dict(
                 text="<b>📅 계절성 분해 분석 - 월별 패턴 탐색</b><br><sub>원본, 트렌드, 계절성 성분 분리 및 계절성 강도 측정</sub>",
@@ -757,79 +790,144 @@ class TelecomVisualizer:
         
         return fig
     
-    def create_dashboard(self, results: Dict) -> str:
-        """대시보드 생성 - 현대적 디자인"""
-        dashboard_config = self.config['visualization']['dashboard']
+    def create_dashboard(self, results: Dict, processed_data: pd.DataFrame = None, target_columns: List[str] = None, data_processor=None) -> str:
+        """대시보드 생성 - 완전한 차트 포함"""
+        
+        # 차트 생성
+        charts_html = ""
+        
+        try:
+            # 1. 예측 결과 차트
+            if 'ensemble_forecast' in results and processed_data is not None and target_columns is not None:
+                forecast_fig = self.create_forecast_plot(processed_data, results['ensemble_forecast'], target_columns, data_processor)
+                charts_html += f"""
+                <div class="chart">
+                    <h3>📊 예측 결과</h3>
+                    <div id="forecast-chart">{forecast_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
+                </div>
+                """
+            
+            # 2. 모델 성능 비교 차트
+            if 'evaluation_results' in results:
+                accuracy_fig = self.create_accuracy_plot(results['evaluation_results'])
+                charts_html += f"""
+                <div class="chart">
+                    <h3>🎯 모델 성능 비교</h3>
+                    <div id="accuracy-chart">{accuracy_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
+                </div>
+                """
+            
+            # 3. 상관관계 분석 차트
+            if processed_data is not None and target_columns is not None:
+                correlation_fig = self.create_feature_importance_plot(processed_data, target_columns)
+                charts_html += f"""
+                <div class="chart">
+                    <h3>🔗 상관관계 분석</h3>
+                    <div id="correlation-chart">{correlation_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
+                </div>
+                """
+            
+            # 4. 계절성 분석 차트
+            if 'time_series_dict' in results and target_columns is not None:
+                seasonal_fig = self.create_seasonal_decomposition_plot(results['time_series_dict'], target_columns)
+                charts_html += f"""
+                <div class="chart">
+                    <h3>📅 계절성 분석</h3>
+                    <div id="seasonal-chart">{seasonal_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
+                </div>
+                """
+            
+            # 5. 계층적 분석 차트
+            if 'ensemble_forecast' in results:
+                hierarchical_fig = self.create_hierarchical_forecast_plot(
+                    results.get('hierarchical_data', {}), 
+                    results['ensemble_forecast']
+                )
+                charts_html += f"""
+                <div class="chart">
+                    <h3>🏗️ 계층적 분석</h3>
+                    <div id="hierarchical-chart">{hierarchical_fig.to_html(full_html=False, include_plotlyjs=False)}</div>
+                </div>
+                """
+                
+        except Exception as e:
+            logger.error(f"대시보드 차트 생성 중 오류: {e}")
+            charts_html = """
+            <div class="chart">
+                <h3>⚠️ 차트 로딩 오류</h3>
+                <p>차트를 불러오는 중 오류가 발생했습니다. 개별 HTML 파일을 확인해주세요.</p>
+            </div>
+            """
         
         # 대시보드 HTML 생성
-        html_content = """
+        html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <title>통신사 재무 예측 대시보드</title>
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
             <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { 
+                * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+                body {{ 
                     font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     min-height: 100vh;
                     color: #2c3e50;
-                }
-                .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-                .header { 
+                }}
+                .container {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
+                .header {{ 
                     text-align: center; 
                     margin-bottom: 40px;
                     background: rgba(255, 255, 255, 0.95);
                     padding: 30px;
                     border-radius: 20px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-                }
-                .header h1 {
+                }}
+                .header h1 {{
                     font-size: 2.5rem;
                     font-weight: 700;
                     background: linear-gradient(135deg, #667eea, #764ba2);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                     margin-bottom: 10px;
-                }
-                .header p { font-size: 1.1rem; color: #7f8c8d; font-weight: 500; }
-                .summary { 
+                }}
+                .header p {{ font-size: 1.1rem; color: #7f8c8d; font-weight: 500; }}
+                .summary {{ 
                     background: rgba(255, 255, 255, 0.95);
                     padding: 30px; 
                     border-radius: 20px; 
                     margin-bottom: 30px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-                }
-                .summary h2 { font-size: 1.8rem; font-weight: 600; margin-bottom: 20px; color: #2c3e50; }
-                .summary-grid {
+                }}
+                .summary h2 {{ font-size: 1.8rem; font-weight: 600; margin-bottom: 20px; color: #2c3e50; }}
+                .summary-grid {{
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                     gap: 20px;
                     margin-top: 20px;
-                }
-                .summary-item {
+                }}
+                .summary-item {{
                     background: linear-gradient(135deg, #667eea, #764ba2);
                     color: white;
                     padding: 20px;
                     border-radius: 15px;
                     text-align: center;
-                }
-                .summary-item h3 { font-size: 2rem; font-weight: 700; margin-bottom: 5px; }
-                .summary-item p { font-size: 0.9rem; opacity: 0.9; }
-                .chart { 
+                }}
+                .summary-item h3 {{ font-size: 2rem; font-weight: 700; margin-bottom: 5px; }}
+                .summary-item p {{ font-size: 0.9rem; opacity: 0.9; }}
+                .chart {{ 
                     margin-bottom: 30px;
                     background: rgba(255, 255, 255, 0.95);
                     padding: 30px;
                     border-radius: 20px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-                }
-                .chart h3 { font-size: 1.5rem; font-weight: 600; margin-bottom: 20px; color: #2c3e50; text-align: center; }
-                @media (max-width: 768px) {
-                    .container { padding: 10px; }
-                    .header h1 { font-size: 2rem; }
-                    .summary-grid { grid-template-columns: 1fr; }
-                }
+                }}
+                .chart h3 {{ font-size: 1.5rem; font-weight: 600; margin-bottom: 20px; color: #2c3e50; text-align: center; }}
+                @media (max-width: 768px) {{
+                    .container {{ padding: 10px; }}
+                    .header h1 {{ font-size: 2rem; }}
+                    .summary-grid {{ grid-template-columns: 1fr; }}
+                }}
             </style>
         </head>
         <body>
@@ -837,51 +935,28 @@ class TelecomVisualizer:
                 <div class="header">
                     <h1>📊 통신사 재무 예측 대시보드</h1>
                     <p>AI 기반 시계열 예측 분석 리포트</p>
-                    <p style="margin-top: 10px; font-size: 0.9rem; color: #95a5a6;">생성일: """ + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """</p>
+                    <p style="margin-top: 10px; font-size: 0.9rem; color: #95a5a6;">생성일: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
                 </div>
                 
                 <div class="summary">
                     <h2>📈 예측 요약</h2>
                     <div class="summary-grid">
                         <div class="summary-item">
-                            <h3>""" + str(len(results.get('ensemble_forecast', pd.DataFrame()))) + """</h3>
+                            <h3>{len(results.get('ensemble_forecast', pd.DataFrame()))}</h3>
                             <p>예측 기간 (개월)</p>
                         </div>
                         <div class="summary-item">
-                            <h3>""" + str(len(results.get('ensemble_forecast', pd.DataFrame()).columns)) + """</h3>
+                            <h3>{len(results.get('ensemble_forecast', pd.DataFrame()).columns)}</h3>
                             <p>예측 대상 계정과목</p>
                         </div>
                         <div class="summary-item">
-                            <h3>""" + str(len(results.get('evaluation_results', {}))) + """</h3>
+                            <h3>{len(results.get('evaluation_results', {}))}</h3>
                             <p>사용 모델 수</p>
                         </div>
                     </div>
                 </div>
                 
-                <div class="chart">
-                    <h3>📊 예측 결과</h3>
-                    <div id="forecast-chart"></div>
-                </div>
-                
-                <div class="chart">
-                    <h3>🎯 모델 성능 비교</h3>
-                    <div id="accuracy-chart"></div>
-                </div>
-                
-                <div class="chart">
-                    <h3>🔗 상관관계 분석</h3>
-                    <div id="correlation-chart"></div>
-                </div>
-                
-                <div class="chart">
-                    <h3>📅 계절성 분석</h3>
-                    <div id="seasonal-chart"></div>
-                </div>
-                
-                <div class="chart">
-                    <h3>🏗️ 계층적 분석</h3>
-                    <div id="hierarchical-chart"></div>
-                </div>
+                {charts_html}
             </div>
         </body>
         </html>
@@ -943,7 +1018,7 @@ class TelecomVisualizer:
         hierarchical_fig.write_html(self.results_dir / "hierarchical_plot.html")
         
         # 6. 대시보드 생성
-        dashboard_path = self.create_dashboard(results)
+        dashboard_path = self.create_dashboard(results, processed_data, target_columns, data_processor)
         
         # 7. 예측 결과 CSV 저장
         if 'ensemble_forecast' in results:

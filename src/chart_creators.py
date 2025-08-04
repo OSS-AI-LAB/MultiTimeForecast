@@ -228,8 +228,8 @@ class ChartCreators:
         fig = make_subplots(
             rows=n_rows, cols=n_cols,
             subplot_titles=[f"<b>{metric}</b>" for metric in metrics],
-            vertical_spacing=0.15,
-            horizontal_spacing=0.1
+            vertical_spacing=0.2,
+            horizontal_spacing=0.15
         )
         
         # 현대적인 색상 팔레트
@@ -272,28 +272,28 @@ class ChartCreators:
                 row=row, col=col
             )
             
-            # 성능 순위 텍스트 추가
+            # 성능 순위 텍스트 추가 (좌상단)
             fig.add_annotation(
-                x=0.5, y=0.95,
+                x=0.02, y=0.95,
                 xref=f'x{i+1}', yref=f'y{i+1}',
                 text=performance_text,
                 showarrow=False,
                 font=dict(size=9, color='#2c3e50'),
-                bgcolor='rgba(255,255,255,0.8)',
+                bgcolor='rgba(255,255,255,0.9)',
                 bordercolor='#bdc3c7',
                 borderwidth=1
             )
             
-            # 성능 차이 근거 추가
+            # 성능 차이 근거 추가 (우상단)
             if len(means) >= 2:
                 best_value = means[0]
                 second_best = means[1]
                 improvement = ((second_best - best_value) / best_value) * 100 if best_value != 0 else 0
                 
                 fig.add_annotation(
-                    x=0.5, y=0.82,
+                    x=0.98, y=0.95,
                     xref=f'x{i+1}', yref=f'y{i+1}',
-                    text=f"💡 {best_model}이 {second_best:.2f}보다 {improvement:.1f}% 우수",
+                    text=f"💡 {best_model}<br>{improvement:.1f}% 우수",
                     showarrow=False,
                     font=dict(size=8, color='#27ae60'),
                     bgcolor='rgba(39, 174, 96, 0.1)',
@@ -301,21 +301,19 @@ class ChartCreators:
                     borderwidth=1
                 )
             
-            # 모델별 상세 통계 추가
+            # 모델별 상세 통계 추가 (바 위에 간단하게)
             for j, model in enumerate(models):
                 model_data = metric_data[metric_data['Model'] == model]
                 std_val = model_data['Value'].std()
-                min_val = model_data['Value'].min()
-                max_val = model_data['Value'].max()
                 
-                # 통계 정보를 바 위에 표시
+                # 통계 정보를 바 위에 간단하게 표시 (표준편차만)
                 fig.add_annotation(
-                    x=j, y=means[j] + max(means) * 0.05,
+                    x=j, y=means[j] + max(means) * 0.08,
                     xref=f'x{i+1}', yref=f'y{i+1}',
-                    text=f'σ: {std_val:.2f}<br>범위: {min_val:.2f}~{max_val:.2f}',
+                    text=f'σ: {std_val:.2f}',
                     showarrow=False,
                     font=dict(size=7, color='#7f8c8d'),
-                    bgcolor='rgba(255,255,255,0.7)',
+                    bgcolor='rgba(255,255,255,0.8)',
                     bordercolor='#ecf0f1',
                     borderwidth=0.5
                 )
@@ -327,7 +325,7 @@ class ChartCreators:
                 x=0.5,
                 font=dict(size=20, color='#2c3e50')
             ),
-            height=300 * n_rows,
+            height=400 * n_rows,  # 높이 증가
             template="plotly_white",
             font=dict(family="Arial, sans-serif", size=11),
             plot_bgcolor='rgba(0,0,0,0)',
@@ -350,6 +348,12 @@ class ChartCreators:
                 title_text="평균값",
                 gridcolor='rgba(128,128,128,0.2)',
                 row=row, col=col
+            )
+            
+            # 서브플롯 여백 조정 (텍스트가 잘리지 않도록)
+            fig.update_layout(
+                **{f'xaxis{i+1}': dict(domain=[0.1, 0.9])},
+                **{f'yaxis{i+1}': dict(domain=[0.15, 0.85])}
             )
         
         return fig 
