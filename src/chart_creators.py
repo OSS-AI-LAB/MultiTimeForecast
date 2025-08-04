@@ -283,7 +283,7 @@ class ChartCreators:
             # 성능 순위 텍스트 추가 (좌상단)
             fig.add_annotation(
                 x=0.02, y=0.92,
-                xref=f'x{i+1}', yref=f'y{i+1}',
+                xref=f'x{row}{col}', yref=f'y{row}{col}',
                 text=performance_text,
                 showarrow=False,
                 font=dict(size=10, color='#2c3e50'),
@@ -300,7 +300,7 @@ class ChartCreators:
                 
                 fig.add_annotation(
                     x=0.98, y=0.92,
-                    xref=f'x{i+1}', yref=f'y{i+1}',
+                    xref=f'x{row}{col}', yref=f'y{row}{col}',
                     text=f"💡 {best_model}<br>{improvement:.1f}% 우수",
                     showarrow=False,
                     font=dict(size=9, color='#27ae60'),
@@ -317,7 +317,7 @@ class ChartCreators:
                 # 통계 정보를 바 위에 간단하게 표시 (표준편차만)
                 fig.add_annotation(
                     x=j, y=means[j] + max(means) * 0.08,
-                    xref=f'x{i+1}', yref=f'y{i+1}',
+                    xref=f'x{row}{col}', yref=f'y{row}{col}',
                     text=f'σ: {std_val:.2f}',
                     showarrow=False,
                     font=dict(size=7, color='#7f8c8d'),
@@ -348,31 +348,15 @@ class ChartCreators:
             col = (i % n_cols) + 1
             
             # 서브플롯별 고유한 축 설정 - 겹침 문제 해결
-            if col == 1:  # 첫 번째 열
-                fig.update_xaxes(
-                    title_text="모델",
-                    gridcolor='rgba(128,128,128,0.2)',
-                    row=row, col=col,
-                    domain=[0.05, 0.45]  # 왼쪽 절반
-                )
-                fig.update_yaxes(
-                    title_text="평균값",
-                    gridcolor='rgba(128,128,128,0.2)',
-                    row=row, col=col,
-                    domain=[0.1, 0.9] if row == 1 else [0.1, 0.9]
-                )
-            else:  # 두 번째 열
-                fig.update_xaxes(
-                    title_text="모델",
-                    gridcolor='rgba(128,128,128,0.2)',
-                    row=row, col=col,
-                    domain=[0.55, 0.95]  # 오른쪽 절반
-                )
-                fig.update_yaxes(
-                    title_text="평균값",
-                    gridcolor='rgba(128,128,128,0.2)',
-                    row=row, col=col,
-                    domain=[0.1, 0.9] if row == 1 else [0.1, 0.9]
-                )
+            fig.update_xaxes(
+                title_text="모델",
+                gridcolor='rgba(128,128,128,0.2)',
+                row=row, col=col
+            )
+            fig.update_yaxes(
+                title_text="평균값",
+                gridcolor='rgba(128,128,128,0.2)',
+                row=row, col=col
+            )
         
         return fig 

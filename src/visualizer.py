@@ -802,6 +802,11 @@ class TelecomVisualizer:
                 try:
                     # 개별 파일과 동일한 방식으로 차트 생성
                     forecast_fig = self.create_forecast_plot(processed_data, results['ensemble_forecast'], target_columns, data_processor)
+                    
+                    # 디버깅을 위한 로그 추가
+                    logger.info(f"대시보드 예측 차트 생성: {len(processed_data)} 행, {len(target_columns)} 컬럼")
+                    logger.info(f"예측 데이터: {len(results['ensemble_forecast'])} 행, {len(results['ensemble_forecast'].columns)} 컬럼")
+                    
                     charts_html += f"""
                     <div class="chart">
                         <h3>📊 예측 결과</h3>
