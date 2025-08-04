@@ -18,6 +18,12 @@ from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
+# 분할된 모듈 import
+try:
+    from .chart_creators import ChartCreators
+except ImportError:
+    from chart_creators import ChartCreators
+
 # 한글 폰트 설정
 plt.rcParams['font.family'] = 'DejaVu Sans'
 sns.set_style("whitegrid")
@@ -44,300 +50,12 @@ class TelecomVisualizer:
                            forecast_data: pd.DataFrame,
                            target_columns: List[str],
                            data_processor=None) -> go.Figure:
-        """예측 결과 시각화 - 개선된 디자인 (성장률, 신뢰구간 포함)"""
-        # vertical_spacing을 동적으로 계산하여 오류 방지
-        n_rows = len(target_columns)
-        if n_rows <= 1:
-            vertical_spacing = 0.1
-        else:
-            vertical_spacing = min(0.08, 1.0 / (n_rows + 1))
-        
-        # 정규화된 데이터를 원본 값으로 변환
-        actual_display = actual_data.copy()
-        forecast_display = forecast_data.copy()
-        
-        if data_processor and hasattr(data_processor, 'inverse_scale_features'):
-            try:
-                # 실제 데이터 역변환
-                actual_display = data_processor.inverse_scale_features(actual_display)
-                # 예측 데이터 역변환
-                forecast_display = data_processor.inverse_scale_features(forecast_display)
-                logger.info("예측 결과를 원본 값으로 변환 완료")
-            except Exception as e:
-                logger.warning(f"데이터 역변환 실패: {e}")
-        
-        fig = make_subplots(
-            rows=n_rows, cols=1,
-            subplot_titles=[f"<b>{col}</b>" for col in target_columns],
-            vertical_spacing=vertical_spacing,
-            specs=[[{"secondary_y": False}] for _ in target_columns]
-        )
-        
-        # 현대적인 색상 팔레트
-        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
-                 '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-        
-        for i, col in enumerate(target_columns):
-            if col in actual_display.columns and col in forecast_display.columns:
-                # 성장률 계산
-                actual_values = actual_display[col].dropna()
-                forecast_values = forecast_display[col].dropna()
-                
-                if len(actual_values) > 0 and len(forecast_values) > 0:
-                    # 최근 실제값과 예측값 비교
-                    recent_actual = actual_values.iloc[-1]
-                    first_forecast = forecast_values.iloc[0]
-                    last_forecast = forecast_values.iloc[-1]
-                    
-                    # 단기 성장률 (최근 실제 → 첫 예측)
-                    short_growth = ((first_forecast - recent_actual) / recent_actual) * 100 if recent_actual != 0 else 0
-                    
-                    # 장기 성장률 (최근 실제 → 마지막 예측)
-                    long_growth = ((last_forecast - recent_actual) / recent_actual) * 100 if recent_actual != 0 else 0
-                    
-                    # 예측 신뢰구간 (간단한 방법: 예측값의 ±10%)
-                    upper_bound = forecast_values * 1.1
-                    lower_bound = forecast_values * 0.9
-                    
-                    # 실제 데이터
-                    fig.add_trace(
-                        go.Scatter(
-                            x=actual_display.index,
-                            y=actual_display[col],
-                            mode='lines+markers',
-                            name=f'{col} (실제)',
-                            line=dict(color=colors[i % len(colors)], width=3),
-                            marker=dict(size=6, color=colors[i % len(colors)]),
-                            showlegend=(i == 0),
-                            hovertemplate='<b>%{x}</b><br>실제값: %{y:,.0f}원<extra></extra>'
-                        ),
-                        row=i+1, col=1
-                    )
-                    
-                    # 예측 신뢰구간
-                    fig.add_trace(
-                        go.Scatter(
-                            x=forecast_display.index,
-                            y=upper_bound,
-                            mode='lines',
-                            line=dict(width=0),
-                            showlegend=False,
-                            hoverinfo='skip'
-                        ),
-                        row=i+1, col=1
-                    )
-                    
-                    fig.add_trace(
-                        go.Scatter(
-                            x=forecast_display.index,
-                            y=lower_bound,
-                            mode='lines',
-                            line=dict(width=0),
-                            fill='tonexty',
-                            fillcolor='rgba(52, 152, 219, 0.1)',
-                            showlegend=False,
-                            hoverinfo='skip'
-                        ),
-                        row=i+1, col=1
-                    )
-                    
-                    # 예측 데이터
-                    fig.add_trace(
-                        go.Scatter(
-                            x=forecast_display.index,
-                            y=forecast_display[col],
-                            mode='lines+markers',
-                            name=f'{col} (예측)',
-                            line=dict(color=colors[i % len(colors)], width=3, dash='dash'),
-                            marker=dict(size=6, color=colors[i % len(colors)], symbol='diamond'),
-                            showlegend=(i == 0),
-                            hovertemplate='<b>%{x}</b><br>예측값: %{y:,.0f}원<extra></extra>'
-                        ),
-                        row=i+1, col=1
-                    )
-                    
-                    # 성장률 정보 추가
-                    growth_color = '#2ecc71' if long_growth > 0 else '#e74c3c'
-                    fig.add_annotation(
-                        x=0.02, y=0.95,
-                        xref=f'x{i+1}', yref=f'y{i+1}',
-                        text=f'📈 단기: {short_growth:+.1f}%<br>📊 장기: {long_growth:+.1f}%',
-                        showarrow=False,
-                        font=dict(size=10, color=growth_color),
-                        bgcolor='rgba(255,255,255,0.9)',
-                        bordercolor=growth_color,
-                        borderwidth=1
-                    )
-        
-        # 레이아웃 업데이트
-        fig.update_layout(
-            title=dict(
-                text="<b>📈 통신사 재무 예측 결과 - 성장률 분석</b><br><sub>실제값 vs 예측값, 성장률, 신뢰구간 포함</sub>",
-                x=0.5,
-                font=dict(size=20, color='#2c3e50')
-            ),
-            height=350 * len(target_columns),
-            showlegend=True,
-            template="plotly_white",
-            font=dict(family="Arial, sans-serif", size=12),
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=80, r=80, t=120, b=80)
-        )
-        
-        # 각 서브플롯 스타일링
-        for i in range(len(target_columns)):
-            fig.update_xaxes(
-                title_text="날짜",
-                gridcolor='rgba(128,128,128,0.2)',
-                row=i+1, col=1
-            )
-            fig.update_yaxes(
-                title_text="금액 (원)",
-                gridcolor='rgba(128,128,128,0.2)',
-                row=i+1, col=1
-            )
-        
-        return fig
+        """예측 결과 시각화 - 분할된 모듈 사용"""
+        return ChartCreators.create_forecast_plot(actual_data, forecast_data, target_columns, data_processor)
     
     def create_accuracy_plot(self, evaluation_results: Dict) -> go.Figure:
-        """모델 정확도 비교 시각화 - 직관적이고 실용적인 디자인"""
-        # 평가 결과를 데이터프레임으로 변환
-        accuracy_data = []
-        
-        for model_name, model_results in evaluation_results.items():
-            for metric_name, metric_results in model_results.items():
-                if isinstance(metric_results, dict):
-                    for col, value in metric_results.items():
-                        accuracy_data.append({
-                            'Model': model_name.upper(),
-                            'Metric': metric_name.upper(),
-                            'Account': col,
-                            'Value': value
-                        })
-        
-        if not accuracy_data:
-            return go.Figure()
-        
-        df_accuracy = pd.DataFrame(accuracy_data)
-        
-        # 메트릭별로 서브플롯 생성 (2열 레이아웃)
-        metrics = df_accuracy['Metric'].unique()
-        n_metrics = len(metrics)
-        n_cols = 2
-        n_rows = (n_metrics + 1) // 2
-        
-        fig = make_subplots(
-            rows=n_rows, cols=n_cols,
-            subplot_titles=[f"<b>{metric}</b>" for metric in metrics],
-            vertical_spacing=0.15,
-            horizontal_spacing=0.1
-        )
-        
-        # 현대적인 색상 팔레트
-        colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6']
-        
-        for i, metric in enumerate(metrics):
-            metric_data = df_accuracy[df_accuracy['Metric'] == metric]
-            row = (i // n_cols) + 1
-            col = (i % n_cols) + 1
-            
-            # 모델별 평균값 계산
-            model_means = metric_data.groupby('Model')['Value'].mean().sort_values()
-            models = model_means.index.tolist()
-            means = model_means.values.tolist()
-            
-            # 성능 순위 계산 (낮을수록 좋은 지표: MAE, RMSE, MAPE)
-            is_lower_better = metric in ['MAE', 'RMSE', 'MAPE']
-            if is_lower_better:
-                best_model = models[0]  # 가장 낮은 값
-                worst_model = models[-1]  # 가장 높은 값
-                performance_text = f"<b>🏆 최고: {best_model}</b><br>❌ 최악: {worst_model}"
-            else:
-                best_model = models[-1]  # 가장 높은 값
-                worst_model = models[0]  # 가장 낮은 값
-                performance_text = f"<b>🏆 최고: {best_model}</b><br>❌ 최악: {worst_model}"
-            
-            # 바 차트로 모델 성능 비교
-            fig.add_trace(
-                go.Bar(
-                    x=models,
-                    y=means,
-                    name=metric,
-                    marker_color=[colors[j % len(colors)] for j in range(len(models))],
-                    text=[f'{val:.2f}' for val in means],
-                    textposition='auto',
-                    hovertemplate='<b>%{x}</b><br>평균 %{y:.2f}<br>순위: %{customdata}<extra></extra>',
-                    customdata=[f"{j+1}위" for j in range(len(models))],
-                    showlegend=False
-                ),
-                row=row, col=col
-            )
-            
-            # 성능 순위 텍스트 추가
-            fig.add_annotation(
-                x=0.5, y=0.95,
-                xref=f'x{i+1}', yref=f'y{i+1}',
-                text=performance_text,
-                showarrow=False,
-                font=dict(size=10, color='#2c3e50'),
-                bgcolor='rgba(255,255,255,0.8)',
-                bordercolor='#bdc3c7',
-                borderwidth=1
-            )
-            
-            # 모델별 상세 통계 추가
-            for j, model in enumerate(models):
-                model_data = metric_data[metric_data['Model'] == model]
-                std_val = model_data['Value'].std()
-                min_val = model_data['Value'].min()
-                max_val = model_data['Value'].max()
-                
-                # 통계 정보를 바 위에 표시
-                fig.add_annotation(
-                    x=j, y=means[j] + max(means) * 0.05,
-                    xref=f'x{i+1}', yref=f'y{i+1}',
-                    text=f'σ: {std_val:.2f}<br>범위: {min_val:.2f}~{max_val:.2f}',
-                    showarrow=False,
-                    font=dict(size=8, color='#7f8c8d'),
-                    bgcolor='rgba(255,255,255,0.7)',
-                    bordercolor='#ecf0f1',
-                    borderwidth=0.5
-                )
-        
-        # 레이아웃 업데이트
-        fig.update_layout(
-            title=dict(
-                text="<b>🎯 모델 성능 비교 - 직관적 분석</b><br><sub>각 지표별 모델 순위와 성능 차이를 한눈에 확인</sub>",
-                x=0.5,
-                font=dict(size=20, color='#2c3e50')
-            ),
-            height=300 * n_rows,
-            template="plotly_white",
-            font=dict(family="Arial, sans-serif", size=11),
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=80, r=80, t=120, b=80),
-            showlegend=False
-        )
-        
-        # 각 서브플롯 스타일링
-        for i in range(n_metrics):
-            row = (i // n_cols) + 1
-            col = (i % n_cols) + 1
-            
-            fig.update_xaxes(
-                title_text="모델",
-                gridcolor='rgba(128,128,128,0.2)',
-                row=row, col=col
-            )
-            fig.update_yaxes(
-                title_text="평균값",
-                gridcolor='rgba(128,128,128,0.2)',
-                row=row, col=col
-            )
-        
-        return fig
+        """모델 정확도 비교 시각화 - 분할된 모듈 사용"""
+        return ChartCreators.create_accuracy_plot(evaluation_results)
     
     def create_model_comparison_summary(self, evaluation_results: Dict) -> go.Figure:
         """모델 비교 요약 - 승률과 성능 개선율"""
@@ -500,6 +218,7 @@ class TelecomVisualizer:
         
         # 4. 종합 평가 (점수화)
         scores = {}
+        score_details = {}
         for model in models:
             # 승률 점수 (0-40점)
             win_score = avg_win_rates[model] * 0.4
@@ -510,7 +229,16 @@ class TelecomVisualizer:
             # 개선율 점수 (0-30점) - 개선율이 낮을수록 높은 점수
             imp_score = max(0, 30 - avg_improvements[model] * 1.5)
             
-            scores[model] = win_score + rank_score + imp_score
+            total_score = win_score + rank_score + imp_score
+            scores[model] = total_score
+            
+            # 점수 세부 내역 저장
+            score_details[model] = {
+                '승률점수': win_score,
+                '순위점수': rank_score,
+                '개선율점수': imp_score,
+                '총점': total_score
+            }
         
         models_score = list(scores.keys())
         score_values = list(scores.values())
@@ -523,7 +251,11 @@ class TelecomVisualizer:
                 marker_color=['#2ecc71' if score > 70 else '#f39c12' if score > 50 else '#e74c3c' for score in score_values],
                 text=[f'{score:.0f}점' for score in score_values],
                 textposition='auto',
-                hovertemplate='<b>%{x}</b><br>종합 점수: %{y:.0f}점<extra></extra>'
+                hovertemplate='<b>%{x}</b><br>종합 점수: %{y:.0f}점<extra></extra>',
+                customdata=[[
+                    f"승률점수: {score_details[model]['승률점수']:.1f}점<br>순위점수: {score_details[model]['순위점수']:.1f}점<br>개선율점수: {score_details[model]['개선율점수']:.1f}점"
+                    for model in models_score
+                ]]
             ),
             row=2, col=2
         )
@@ -793,6 +525,22 @@ class TelecomVisualizer:
     def create_hierarchical_forecast_plot(self, hierarchical_data: Dict,
                                         forecast_data: pd.DataFrame) -> go.Figure:
         """계층적 예측 결과 시각화 - 개선된 디자인"""
+        # hierarchical_data가 비어있는 경우 기본 데이터 생성
+        if not hierarchical_data:
+            logger.warning("hierarchical_data가 비어있어 기본 데이터로 대체합니다.")
+            # forecast_data를 기반으로 간단한 계층 구조 생성
+            if not forecast_data.empty:
+                hierarchical_data = {
+                    'total': pd.DataFrame({
+                        'total_revenue': forecast_data.sum(axis=1)
+                    }, index=forecast_data.index)
+                }
+                # 각 계정과목을 개별 계층으로 추가
+                for col in forecast_data.columns:
+                    hierarchical_data[f'account_{col}'] = pd.DataFrame({
+                        col: forecast_data[col]
+                    }, index=forecast_data.index)
+        
         fig = make_subplots(
             rows=2, cols=2,
             subplot_titles=[
