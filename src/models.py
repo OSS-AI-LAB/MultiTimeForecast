@@ -493,7 +493,8 @@ class TelecomForecaster:
                     # 다변량 모델 (TFT, Prophet)
                     model_pred = predictions[model_name]
                 
-                if not model_pred.empty:
+                # DataFrame인지 확인하고 empty 체크
+                if isinstance(model_pred, pd.DataFrame) and not model_pred.empty:
                     model_predictions[model_name] = model_pred
         
         if not model_predictions:
@@ -566,7 +567,8 @@ class TelecomForecaster:
                     # 다변량 모델 (TFT, Prophet)
                     model_pred = predictions[model_name]
                 
-                if not model_pred.empty:
+                # DataFrame인지 확인하고 empty 체크
+                if isinstance(model_pred, pd.DataFrame) and not model_pred.empty:
                     model_predictions[model_name] = model_pred
         
         if not model_predictions:
