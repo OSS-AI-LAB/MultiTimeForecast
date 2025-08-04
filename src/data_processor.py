@@ -418,6 +418,9 @@ class TelecomDataProcessor:
             return df  # 스케일링 없음
         
         if fit:
+            # 원본 계정과목 데이터 저장 (역변환용)
+            if hasattr(self, 'account_columns'):
+                self._original_account_data = df[self.account_columns].copy()
             df[scale_cols] = self.scaler.fit_transform(df[scale_cols])
         else:
             if self.scaler is not None:
@@ -444,8 +447,24 @@ class TelecomDataProcessor:
                 # DataFrame에서 계정과목 컬럼만 선택하여 역변환
                 available_cols = [col for col in scale_cols if col in df.columns]
                 if available_cols:
-                    df[available_cols] = self.scaler.inverse_transform(df[available_cols])
-                    logger.info(f"특성 역변환 완료: {len(available_cols)}개 컬럼")
+                    # 스케일러가 훈련된 전체 컬럼과 현재 데이터의 컬럼 수가 다른 경우 처리
+                    if len(available_cols) != len(scale_cols):
+                        # 계정과목 컬럼만으로 별도 스케일러 생성
+                        account_scaler = RobustScaler() if scaling_config['method'] == 'robust' else StandardScaler()
+                        
+                        # 원본 데이터에서 계정과목 컬럼만 추출하여 스케일러 재훈련
+                        if hasattr(self, '_original_account_data'):
+                            account_data = self._original_account_data[available_cols]
+                            account_scaler.fit(account_data)
+                            df[available_cols] = account_scaler.inverse_transform(df[available_cols])
+                            logger.info(f"계정과목 전용 스케일러로 역변환 완료: {len(available_cols)}개 컬럼")
+                        else:
+                            logger.warning("원본 계정과목 데이터가 없어 역변환을 건너뜁니다")
+                            return df
+                    else:
+                        # 컬럼 수가 일치하는 경우 기존 방식 사용
+                        df[available_cols] = self.scaler.inverse_transform(df[available_cols])
+                        logger.info(f"특성 역변환 완료: {len(available_cols)}개 컬럼")
                 else:
                     logger.warning("역변환할 계정과목 컬럼이 없습니다")
             except Exception as e:
