@@ -493,7 +493,7 @@ class TelecomForecaster:
                 'ensemble_forecast': ensemble_forecast,
                 'evaluation_results': evaluation_results,
                 'time_series_dict': time_series_dict,
-                'hierarchical_data': {}  # 빈 dict로 초기화
+
             }
             
             logger.info("=== 예측 파이프라인 완료 ===")

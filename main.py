@@ -33,7 +33,7 @@ def main():
         
         # 2. 원본 데이터 처리
         print("\n2. 원본 데이터 처리 중...")
-        processed_data, hierarchical_data = data_processor.process_data()
+        processed_data = data_processor.process_data()
         
         # 특성 정보 출력
         feature_info = data_processor.get_feature_info()
@@ -134,7 +134,7 @@ def main():
         print(f"  - 정확도 차트: results/accuracy_plot.html")
         print(f"  - 상관관계 차트: results/correlation_plot.html")
         print(f"  - 계절성 차트: results/seasonal_plot.html")
-        print(f"  - 계층적 차트: results/hierarchical_plot.html")
+
         print(f"  - 대시보드: {report_path}")
         
         print("\n=== 시스템 실행 완료 ===")

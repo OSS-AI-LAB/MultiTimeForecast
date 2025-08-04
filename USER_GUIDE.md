@@ -208,7 +208,7 @@ plt.rcParams['font.family'] = 'DejaVu Sans'
 processor = TelecomDataProcessor()
 
 # 데이터 처리
-processed_data, hierarchical_data = processor.process_data()
+processed_data = processor.process_data()
 
 # 특성 정보 확인
 feature_info = processor.get_feature_info()
@@ -281,7 +281,7 @@ jupyter nbconvert --to pdf notebooks/telecom_forecasting_demo.ipynb
 - `accuracy_plot.html`: 모델 정확도 비교
 - `correlation_plot.html`: 계정과목 간 상관관계
 - `seasonal_plot.html`: 계절성 분석
-- `hierarchical_plot.html`: 계층적 예측 분석
+
 - `dashboard.html`: 종합 대시보드
 
 ### 2. 결과 해석 방법
@@ -401,7 +401,7 @@ logging.basicConfig(level=logging.INFO)
 
 # 데이터 처리 과정 확인
 processor = TelecomDataProcessor()
-processed_data, hierarchical_data = processor.process_data()
+processed_data = processor.process_data()
 ```
 
 #### 단계별 테스트
@@ -409,7 +409,7 @@ processed_data, hierarchical_data = processor.process_data()
 # 각 단계별로 테스트
 # 1. 데이터 처리 테스트
 processor = TelecomDataProcessor()
-processed_data, hierarchical_data = processor.process_data()
+processed_data = processor.process_data()
 print("1. 데이터 처리 완료")
 
 # 2. 예측 모델 테스트

@@ -441,26 +441,9 @@ class TelecomDataProcessor:
         
         return df
     
-    def create_hierarchical_structure(self, df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
-        """계층적 구조 생성"""
-        hierarchical_data = {}
-        
-        # 전체 레벨
-        hierarchical_data['total'] = df[self.account_columns].sum(axis=1).to_frame('total_revenue')
-        
-        # 제품별 레벨
-        for product in self.product_columns:
-            if product in df.columns:
-                hierarchical_data[f'product_{product}'] = df[product].to_frame(f'{product}_revenue')
-        
-        # 계정과목별 레벨
-        for account in self.account_columns:
-            hierarchical_data[f'account_{account}'] = df[account].to_frame(f'{account}_revenue')
-        
-        logger.info(f"계층적 구조 생성: {len(hierarchical_data)}개 레벨")
-        return hierarchical_data
+
     
-    def process_data(self, file_path: Optional[str] = None) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    def process_data(self, file_path: Optional[str] = None) -> pd.DataFrame:
         """전체 데이터 처리 파이프라인"""
         logger.info("=== 데이터 처리 파이프라인 시작 ===")
         
@@ -488,8 +471,7 @@ class TelecomDataProcessor:
         # 8. 특성 스케일링
         pivot_df = self.scale_features(pivot_df, fit=True)
         
-        # 9. 계층적 구조 생성
-        hierarchical_data = self.create_hierarchical_structure(pivot_df)
+
         
         # 10. 처리된 데이터 저장
         processed_dir = Path(self.config['data']['processed_dir'])
@@ -498,7 +480,7 @@ class TelecomDataProcessor:
         pivot_df.to_csv(processed_dir / 'processed_data.csv')
         
         logger.info("=== 데이터 처리 파이프라인 완료 ===")
-        return pivot_df, hierarchical_data
+        return pivot_df
     
     def get_feature_info(self) -> Dict:
         """특성 정보 반환"""

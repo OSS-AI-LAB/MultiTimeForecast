@@ -96,10 +96,7 @@ forecasting:
   # 신뢰구간
   confidence_level: 0.95
   
-  # 계층적 예측
-  hierarchical:
-    levels: ["product", "account_name"]
-    reconciliation_method: "mint"  # minimum trace reconciliation
+
 
 # 평가 설정
 evaluation:
