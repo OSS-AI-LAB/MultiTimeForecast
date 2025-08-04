@@ -134,7 +134,8 @@ forecasting:
 - `results/forecast_results.csv`: 예측 결과
 - `results/evaluation_results.csv`: 모델 평가 결과
 - `results/forecast_plot.html`: 예측 차트
-- `results/accuracy_plot.html`: 모델 정확도 비교
+- `results/accuracy_plot.html`: 모델 정확도 비교 (개선됨)
+- `results/model_comparison_summary.html`: 모델 종합 분석 (신규)
 - `results/correlation_plot.html`: 계정과목 간 상관관계
 - `results/seasonal_plot.html`: 계절성 분석
 - `results/hierarchical_plot.html`: 계층적 예측 분석
