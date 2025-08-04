@@ -70,9 +70,9 @@ class ChartCreators:
                     # 장기 성장률 (최근 실제 → 마지막 예측)
                     long_growth = ((last_forecast - recent_actual) / recent_actual) * 100 if recent_actual != 0 else 0
                     
-                    # 예측 신뢰구간 (간단한 방법: 예측값의 ±10%)
-                    upper_bound = forecast_values * 1.1
-                    lower_bound = forecast_values * 0.9
+                    # 예측 신뢰구간 (더 현실적인 방법: 예측값의 ±15%)
+                    upper_bound = forecast_values * 1.15
+                    lower_bound = forecast_values * 0.85
                     
                     # 실제 데이터
                     fig.add_trace(
@@ -132,15 +132,22 @@ class ChartCreators:
                         row=i+1, col=1
                     )
                     
-                    # 성장률 정보 추가
+                    # 성장률 정보 추가 (더 현실적인 표시)
                     growth_color = '#2ecc71' if long_growth > 0 else '#e74c3c'
+                    growth_text = f'📈 단기: {short_growth:+.1f}%<br>📊 장기: {long_growth:+.1f}%'
+                    
+                    # 데이터 부족 경고 추가 (29개월치 데이터)
+                    if len(actual_values) < 36:  # 3년 미만
+                        growth_text += '<br>⚠️ 데이터 부족 (29개월)'
+                        growth_color = '#f39c12'  # 주황색으로 경고
+                    
                     fig.add_annotation(
                         x=0.02, y=0.95,
                         xref=f'x{i+1}', yref=f'y{i+1}',
-                        text=f'📈 단기: {short_growth:+.1f}%<br>📊 장기: {long_growth:+.1f}%',
+                        text=growth_text,
                         showarrow=False,
-                        font=dict(size=10, color=growth_color),
-                        bgcolor='rgba(255,255,255,0.9)',
+                        font=dict(size=9, color=growth_color),
+                        bgcolor='rgba(255,255,255,0.95)',
                         bordercolor=growth_color,
                         borderwidth=1
                     )
@@ -274,13 +281,13 @@ class ChartCreators:
             
             # 성능 순위 텍스트 추가 (좌상단)
             fig.add_annotation(
-                x=0.02, y=0.95,
+                x=0.02, y=0.92,
                 xref=f'x{i+1}', yref=f'y{i+1}',
                 text=performance_text,
                 showarrow=False,
-                font=dict(size=9, color='#2c3e50'),
-                bgcolor='rgba(255,255,255,0.9)',
-                bordercolor='#bdc3c7',
+                font=dict(size=10, color='#2c3e50'),
+                bgcolor='rgba(255,255,255,0.95)',
+                bordercolor='#3498db',
                 borderwidth=1
             )
             
@@ -291,12 +298,12 @@ class ChartCreators:
                 improvement = ((second_best - best_value) / best_value) * 100 if best_value != 0 else 0
                 
                 fig.add_annotation(
-                    x=0.98, y=0.95,
+                    x=0.98, y=0.92,
                     xref=f'x{i+1}', yref=f'y{i+1}',
                     text=f"💡 {best_model}<br>{improvement:.1f}% 우수",
                     showarrow=False,
-                    font=dict(size=8, color='#27ae60'),
-                    bgcolor='rgba(39, 174, 96, 0.1)',
+                    font=dict(size=9, color='#27ae60'),
+                    bgcolor='rgba(39, 174, 96, 0.15)',
                     bordercolor='#27ae60',
                     borderwidth=1
                 )
@@ -321,16 +328,16 @@ class ChartCreators:
         # 레이아웃 업데이트
         fig.update_layout(
             title=dict(
-                text="<b>🎯 모델 성능 비교 - 직관적 분석</b><br><sub>각 지표별 모델 순위와 성능 차이를 한눈에 확인</sub>",
+                text="<b>🎯 모델 성능 비교</b><br><sub>각 지표별 모델 순위와 성능 차이</sub>",
                 x=0.5,
-                font=dict(size=20, color='#2c3e50')
+                font=dict(size=18, color='#2c3e50')
             ),
-            height=400 * n_rows,  # 높이 증가
+            height=350 * n_rows,  # 적절한 높이로 조정
             template="plotly_white",
-            font=dict(family="Arial, sans-serif", size=11),
+            font=dict(family="Arial, sans-serif", size=10),
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=80, r=80, t=120, b=80),
+            margin=dict(l=60, r=60, t=100, b=60),
             showlegend=False
         )
         

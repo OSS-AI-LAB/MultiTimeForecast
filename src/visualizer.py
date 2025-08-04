@@ -351,25 +351,25 @@ class TelecomVisualizer:
         # 레이아웃 업데이트
         fig.update_layout(
             title=dict(
-                text="<b>🔗 계정과목 간 상관관계 분석 - 비즈니스 인사이트</b><br><sub>강한 상관관계(±0.7 이상) 하이라이트, 예측 모델 특성 선택 가이드</sub>",
+                text="<b>🔗 계정과목 간 상관관계 분석</b><br><sub>강한 상관관계(±0.7 이상) 하이라이트</sub>",
                 x=0.5,
-                font=dict(size=18, color='#2c3e50')
+                font=dict(size=16, color='#2c3e50')
             ),
-            width=1000,
-            height=800,
+            width=700,  # 크기 축소
+            height=600,  # 크기 축소
             template="plotly_white",
-            font=dict(family="Arial, sans-serif", size=11),
+            font=dict(family="Arial, sans-serif", size=10),
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=120, r=120, t=140, b=120),
+            margin=dict(l=80, r=80, t=100, b=80),  # 여백 축소
             xaxis=dict(
                 title="계정과목",
                 tickangle=45,
-                tickfont=dict(size=9)
+                tickfont=dict(size=8)
             ),
             yaxis=dict(
                 title="계정과목",
-                tickfont=dict(size=9)
+                tickfont=dict(size=8)
             )
         )
         
@@ -884,39 +884,39 @@ class TelecomVisualizer:
                     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
                 }}
                 .header h1 {{
-                    font-size: 2.5rem;
+                    font-size: 2.2rem;
                     font-weight: 700;
                     background: linear-gradient(135deg, #667eea, #764ba2);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                     margin-bottom: 10px;
                 }}
-                .header p {{ font-size: 1.1rem; color: #7f8c8d; font-weight: 500; }}
+                .header p {{ font-size: 1rem; color: #7f8c8d; font-weight: 500; }}
                 .summary {{ 
                     background: rgba(255, 255, 255, 0.95);
-                    padding: 30px; 
-                    border-radius: 20px; 
-                    margin-bottom: 30px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                    padding: 25px; 
+                    border-radius: 15px; 
+                    margin-bottom: 25px;
+                    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
                 }}
-                .summary h2 {{ font-size: 1.8rem; font-weight: 600; margin-bottom: 20px; color: #2c3e50; }}
+                .summary h2 {{ font-size: 1.6rem; font-weight: 600; margin-bottom: 15px; color: #2c3e50; }}
                 .summary-grid {{
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 20px;
-                    margin-top: 20px;
+                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                    gap: 15px;
+                    margin-top: 15px;
                 }}
                 .summary-item {{
                     background: linear-gradient(135deg, #667eea, #764ba2);
                     color: white;
-                    padding: 20px;
-                    border-radius: 15px;
+                    padding: 18px;
+                    border-radius: 12px;
                     text-align: center;
                 }}
-                .summary-item h3 {{ font-size: 2rem; font-weight: 700; margin-bottom: 5px; }}
-                .summary-item p {{ font-size: 0.9rem; opacity: 0.9; }}
+                .summary-item h3 {{ font-size: 1.8rem; font-weight: 700; margin-bottom: 5px; }}
+                .summary-item p {{ font-size: 0.85rem; opacity: 0.9; }}
                 .chart {{ 
-                    margin-bottom: 30px;
+                    margin-bottom: 25px;
                     background: rgba(255, 255, 255, 0.95);
                     padding: 30px;
                     border-radius: 20px;
