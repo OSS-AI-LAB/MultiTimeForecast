@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import yaml
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 from sklearn.preprocessing import RobustScaler, StandardScaler
@@ -504,11 +505,33 @@ class TelecomDataProcessor:
         
 
         
-        # 10. 처리된 데이터 저장
-        processed_dir = Path(self.config['data']['processed_dir'])
-        processed_dir.mkdir(exist_ok=True)
-        
-        pivot_df.to_csv(processed_dir / 'processed_data.csv')
+        # 10. 처리된 데이터 저장 (선택적)
+        try:
+            processed_dir = Path(self.config['data']['processed_dir'])
+            # 여러 경로 시도
+            possible_paths = [
+                processed_dir,
+                Path('../data/processed'),
+                Path('../../data/processed'),
+                Path(os.path.dirname(__file__), '..', 'data', 'processed')
+            ]
+            
+            saved = False
+            for path in possible_paths:
+                try:
+                    path.mkdir(parents=True, exist_ok=True)
+                    pivot_df.to_csv(path / 'processed_data.csv')
+                    logger.info(f"처리된 데이터 저장 완료: {path}")
+                    saved = True
+                    break
+                except Exception as e:
+                    logger.warning(f"저장 경로 실패 {path}: {e}")
+                    continue
+            
+            if not saved:
+                logger.warning("처리된 데이터 저장을 건너뜁니다")
+        except Exception as e:
+            logger.warning(f"데이터 저장 실패: {e}")
         
         logger.info("=== 데이터 처리 파이프라인 완료 ===")
         return pivot_df
